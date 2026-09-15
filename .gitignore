@@ -1,0 +1,39 @@
+# Compiled executables and build/test output
+/videodl
+/bin/videodl
+*.test
+/coverage.out
+/dist/
+/build/
+
+# Downloaded media, partial data, queue state and logs
+/downloads/
+/logs/
+/state/
+**/.videodl/
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mov
+*.m4s
+*.part
+*.log
+/queue.json
+/queue.json.lock
+/daemon.pid
+
+# Personal configuration: only examples belong in Git
+/config.json
+/config/*.json
+!/config/config.example.json
+/config/local/
+.env
+.env.*
+!.env.example
+
+# Local tooling and scratch data
+/.codegraph/
+/.omo/
+/work/
+.DS_Store

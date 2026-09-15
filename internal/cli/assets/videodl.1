@@ -1,0 +1,99 @@
+.TH VIDEODL 1 "September 2026" "videodl" "User Commands"
+.SH NAME
+videodl \- download HTTP media and HLS playlists with a persistent queue
+.SH SYNOPSIS
+.B videodl setup
+.RI [ --destination " DIR"] " [--config FILE]"
+.br
+.B videodl add
+.RI [ options ] " URL"
+.br
+.B videodl worker
+.RI [ --watch ] " [options]"
+.br
+.B videodl
+.BI --output " FILE"
+.RI [ options ] " URL"
+.SH DESCRIPTION
+Downloads direct HTTP(S) media or public unencrypted HLS playlists.
+DASH and advanced media assembly require FFmpeg.
+Options must precede positional arguments. Existing output files are never replaced.
+.SH COMMANDS
+.TP
+.B setup
+Create configuration, local guide, completions, manual and data directories.
+Existing configuration is preserved. No daemon is started.
+.TP
+.B doctor
+Read-only configuration, paths and FFmpeg diagnostics; no network access.
+.TP
+.B add --name NAME URL
+Queue a download. Returns a job identifier.
+.TP
+.B worker [--watch]
+Drain queued jobs, or continue watching for new ones.
+A failed job does not terminate continuous supervision.
+.TP
+.B list / status JOB_ID / watch [--once] [--json]
+Inspect the queue, a job, or an automatically refreshed report.
+.TP
+.B retry JOB_ID / cancel JOB_ID
+Requeue or cancel a job. Recoverable HTTP partial data is retained.
+.TP
+.B daemon start|stop|restart|status|logs
+Manage the detached background worker.
+.TP
+.B config init|path|show|get|set|edit
+Initialize, locate, inspect or edit settings. Example: config set concurrency 2.
+.TP
+.B completion bash|zsh|fish
+Print a shell completion script. See the setup guide for installation.
+.TP
+.B help [COMMAND] / man
+Display help or the embedded plain-text manual.
+.SH TRANSFER OPTIONS
+.TP
+.B --retries N
+Extra attempts on transient HTTP/network failures, 0 to 10; default 3.
+.TP
+.B --resume=false
+Disable verified HTTP resume. Default enabled; requires a strong ETag.
+.TP
+.B --max-height N
+HLS resolution ceiling, e.g. 1080. Zero selects the highest bandwidth.
+Not supported with DASH or forced --ffmpeg.
+.TP
+.B --idle-timeout DURATION
+Maximum idle read duration, default 60s. FFmpeg uses its network read timeout.
+.TP
+.B --timeout DURATION
+Connection, TLS and HTTP response-header timeout, default 30s.
+.TP
+.B --concurrency N
+Simultaneous queued downloads, 1 through 8; default 1.
+.TP
+.B --ffmpeg / --ffmpeg-path PATH
+Force FFmpeg or select its executable. No byte resume with FFmpeg.
+.SH FILES
+.TP
+.I ~/.config/videodl/config.json
+Configuration, overridden by XDG_CONFIG_HOME, VIDEODL_CONFIG or --config.
+.TP
+.I ~/.local/state/videodl/
+Queue and logs, overridden by XDG_STATE_HOME.
+.TP
+.I ~/Downloads/videodl/
+Default destination. Configure with config set destination DIR.
+.TP
+.I DESTINATION/.videodl/
+Private HTTP partial files, validators and persistent advisory lock files.
+.SH ENVIRONMENT
+Settings accept VIDEODL_ uppercase names, e.g. VIDEODL_RETRIES,
+VIDEODL_RESUME, VIDEODL_MAX_HEIGHT and VIDEODL_IDLE_TIMEOUT.
+Precedence: defaults, configuration file, environment, command flags.
+.SH EXIT STATUS
+0 on success; 1 on invalid configuration, command error or failed one-shot job.
+.SH LIMITATIONS
+No website extraction or login handling. Native HLS processes a playlist snapshot.
+Byte resume is for direct HTTP only; HLS and FFmpeg restart from the beginning.
+HTTP partial reuse checks ETag and Content-Range; changed objects restart safely.

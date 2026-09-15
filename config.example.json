@@ -1,0 +1,19 @@
+{
+  "state_path": "/home/you/.local/state/videodl/queue.json",
+  "log_path": "/home/you/.local/state/videodl/logs",
+  "destination": "/home/you/Videos/videodl",
+  "concurrency": 1,
+  "timeout": "30s",
+  "ffmpeg": false,
+  "ffmpeg_path": "",
+  "webhook_url": "",
+  "editor": "",
+  "auto_start_worker": false,
+  "daemon_pid_path": "/home/you/.local/state/videodl/daemon.pid",
+  "daemon_log_path": "/home/you/.local/state/videodl/logs/daemon.log",
+  "notify_command": "",
+  "retries": 3,
+  "resume": true,
+  "max_height": 0,
+  "idle_timeout": "60s"
+}

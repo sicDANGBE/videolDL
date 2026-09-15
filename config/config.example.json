@@ -1,0 +1,9 @@
+{
+  "concurrency": 1,
+  "timeout": "30s",
+  "idle_timeout": "60s",
+  "retries": 3,
+  "resume": true,
+  "max_height": 0,
+  "auto_start_worker": false
+}
