@@ -1,25 +1,41 @@
 #!/bin/sh
 set -eu
 case "${1:-}" in
-  -h|--help) printf '%s\n' 'Usage: bin/install.sh [PREFIX]' 'Default: ~/.local. Builds and installs videodl, manual and completions.' 'No shell startup file is modified; configuration is created by videodl setup.'; exit 0 ;;
+  -h|--help)
+    printf '%s\n' 'Usage : bin/install.sh [PREFIX]' \
+      'Préfixe par défaut : ~/.local. Compilation, installation ou mise à jour.' \
+      'Les services actifs de cette installation sont arrêtés proprement puis relancés.' \
+      'Configuration et file conservées. Aucun service arrêté ne sera démarré.' \
+      'Terminez les workers au premier plan avant la mise à jour.'
+    exit 0 ;;
 esac
-[ "$#" -le 1 ] || { printf '%s\n' 'Usage: bin/install.sh [PREFIX]' >&2; exit 1; }
+[ "$#" -le 1 ] || { printf '%s\n' 'Usage : bin/install.sh [PREFIX]' >&2; exit 1; }
 prefix=${1:-"$HOME/.local"}
-case "$prefix" in /*) ;; *) printf '%s\n' 'PREFIX must be an absolute path.' >&2; exit 1 ;; esac
+case "$prefix" in /*) ;; *) printf '%s\n' 'PREFIX doit être un chemin absolu.' >&2; exit 1 ;; esac
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=$(mktemp -d)
-trap 'rm -rf -- "$build_dir"' EXIT HUP INT TERM
+install_pid=
+trap 'rm -rf -- "$build_dir"' EXIT
+interrupt_install() {
+  trap '' HUP INT TERM
+  if [ -n "$install_pid" ]; then
+    kill -TERM "$install_pid" 2>/dev/null || :
+    wait "$install_pid" 2>/dev/null || :
+  fi
+  exit "$1"
+}
+trap 'interrupt_install 129' HUP
+trap 'interrupt_install 130' INT
+trap 'interrupt_install 143' TERM
+run_child() {
+  "$@" &
+  install_pid=$!
+  if wait "$install_pid"; then result=0; else result=$?; fi
+  install_pid=
+  return "$result"
+}
 cd "$project_dir"
-go build -trimpath -o "$build_dir/videodl" ./cmd/videodl
-install -d "$prefix/bin" "$prefix/share/man/man1" "$prefix/share/bash-completion/completions" "$prefix/share/zsh/site-functions" "$prefix/share/fish/vendor_completions.d"
-# Rename a new executable into place so a running old process is not truncated.
-install -m 0755 "$build_dir/videodl" "$prefix/bin/.videodl-install"
-mv -f "$prefix/bin/.videodl-install" "$prefix/bin/videodl"
-install -m 0644 internal/cli/assets/videodl.1 "$prefix/share/man/man1/videodl.1"
-"$build_dir/videodl" completion bash > "$build_dir/videodl.bash"
-"$build_dir/videodl" completion zsh > "$build_dir/_videodl"
-"$build_dir/videodl" completion fish > "$build_dir/videodl.fish"
-install -m 0644 "$build_dir/videodl.bash" "$prefix/share/bash-completion/completions/videodl"
-install -m 0644 "$build_dir/_videodl" "$prefix/share/zsh/site-functions/_videodl"
-install -m 0644 "$build_dir/videodl.fish" "$prefix/share/fish/vendor_completions.d/videodl.fish"
-printf '%s\n' "Installé : $prefix/bin/videodl" "Vérifiez que $prefix/bin est dans PATH, puis lancez videodl et videodl doctor." "Premier lancement uniquement : videodl setup --destination DIR" "Manuel : man -l $prefix/share/man/man1/videodl.1" 'Bash: source <(videodl completion bash)' 'Un service déjà actif utilise encore son ancien exécutable ; arrêtez-le avant une mise à jour.'
+printf '%s\n' 'Préparation de videodl et de l’installateur…'
+run_child go build -trimpath -o "$build_dir/videodl" ./cmd/videodl
+run_child go build -trimpath -o "$build_dir/videodl-install" ./cmd/videodl-install
+run_child "$build_dir/videodl-install" --prefix "$prefix" --binary "$build_dir/videodl" --manual "$project_dir/internal/cli/assets/videodl.1"

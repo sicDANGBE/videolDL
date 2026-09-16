@@ -158,9 +158,45 @@ Après un changement de réglage, un service actif doit être redémarré avec
 Pour lancer le service automatiquement aux prochains ajouts :
 `./videodl config set auto_start_worker true`.
 
-**Mise à jour :** arrêtez l'ancien daemon avant de remplacer son exécutable.
-La nouvelle version lit les anciennes files. Une file réécrite avec les options
-par tâche ne doit pas être ouverte avec l'ancien exécutable (schéma strict).
+## Installation et mises à jour
+
+Depuis un dépôt à jour, la même commande sert à installer et à mettre à jour :
+
+```sh
+./bin/install.sh
+```
+
+Un préfixe différent peut être fourni : `./bin/install.sh /chemin/absolu`.
+Le script compile le programme et son installateur temporaire avant d’interrompre
+un service. Il prépare le binaire, le manuel et les trois complétions avant le
+remplacement.
+
+Lors d’une mise à jour, il repère les daemons de **cet exécutable installé**, les
+arrête proprement, remplace les fichiers, puis relance uniquement ceux qui étaient
+actifs. Leurs profils, dossiers de lancement et variables d’environnement sont
+conservés sans être affichés. Le redémarrage est confirmé par la prise en charge
+de la file. Un service arrêté reste arrêté ; il est inutile de relancer `setup`.
+Les services d’une autre copie de videodl ne sont pas concernés.
+
+Les tâches interrompues proprement sont remises en attente. HTTP reprend le partiel
+si les conditions habituelles le permettent (ETag fort et serveur compatible).
+HLS et FFmpeg recommencent la tâche depuis le début. Aucun fichier final existant
+n’est écrasé. La configuration n’est pas réinitialisée et la file n’est pas remplacée.
+
+Terminez les `worker` au premier plan avant l’installation : leur présence bloque
+le remplacement avec un message explicite. Deux installations simultanées du même
+préfixe sont refusées. Le script n’effectue pas de `git pull` et ne lance pas de
+nouveau service si aucun n’était actif.
+
+Si la préparation échoue, le service reste actif. Après un échec de remplacement,
+de redémarrage ou une interruption gérée, l’installateur tente de restaurer les
+fichiers précédents et les services qu’il avait arrêtés. Il signale tout échec de
+restauration et conserve les sauvegardes nécessaires. La progression de la file
+n’est jamais restaurée depuis une ancienne copie. Ce mécanisme ne couvre pas une
+coupure électrique ou SIGKILL ; il ne migre pas les schémas de données.
+
+Les mises à jour se font avec le même utilisateur, sous Linux. Pour une copie du
+programme que vous remplacez manuellement, arrêtez son daemon avant le remplacement.
 
 ## Limites
 

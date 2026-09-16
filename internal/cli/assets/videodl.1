@@ -106,6 +106,17 @@ Private HTTP partial files, validators and persistent advisory lock files.
 Settings accept VIDEODL_ uppercase names, e.g. VIDEODL_RETRIES,
 VIDEODL_RESUME, VIDEODL_MAX_HEIGHT and VIDEODL_IDLE_TIMEOUT.
 Precedence: defaults, configuration file, environment, command flags.
+.SH UPDATES
+From an up-to-date source checkout, run bin/install.sh [PREFIX].
+The default prefix is ~/.local. Compilation and staging happen before service interruption.
+The installer stops daemons using that installed executable and relaunches only
+previously active services, preserving their profiles and private environment.
+Configuration is not reinitialized and the queue is not replaced.
+HTTP partials may resume; HLS and FFmpeg restart the interrupted job.
+Foreground workers block replacement and must be stopped first.
+Handled failures trigger restoration of previous package files and services.
+Queue progress is never rolled back. Power loss and SIGKILL are not covered.
+No source fetching, data-schema migration or stopped-service startup is performed.
 .SH EXIT STATUS
 0 on success; 1 on invalid configuration, command error or failed one-shot job.
 .SH LIMITATIONS

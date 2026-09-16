@@ -58,3 +58,11 @@ une modification. Les tâches existantes conservent leur chemin de sortie.
 `min_free_space` vaut `2GiB` par défaut ; exemple :
 `videodl config set min_free_space 4GiB`. Voir le README principal pour la
 supervision continue et les limites du contrôle disque.
+
+## Mettre à jour
+
+Relancez `./bin/install.sh` depuis le dépôt à jour. L’installateur gère l’arrêt et
+le redémarrage des services actifs de la copie installée, avec leur profil.
+Les réglages et la file sont conservés ; il est inutile de refaire `setup`.
+Les workers au premier plan doivent être terminés auparavant.
+Voir le README principal pour la reprise et la restauration en cas d’échec.

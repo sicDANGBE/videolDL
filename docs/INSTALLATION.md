@@ -19,8 +19,10 @@ saved per job; explicit worker flags override those job settings.
 
 Existing output files are never replaced. Recoverable direct-HTTP partials are
 saved in `DESTINATION/.videodl/` and reused only with a strong ETag and valid range
-response. HLS and FFmpeg restart from the beginning. Stop old daemons before
-upgrading; older executables cannot read queues containing new per-job options.
+response. HLS and FFmpeg restart from the beginning. Use `bin/install.sh` for
+updates: it stops and relaunches active daemons of that installation. Stop the
+service yourself only when replacing binaries manually. Older executables cannot
+read queues containing new per-job options.
 
 
 ## Requirements
@@ -45,8 +47,7 @@ go build -trimpath -o videodl ./cmd/videodl
 To place the binary in a user-local executable directory:
 
 ```bash
-mkdir -p "$HOME/.local/bin"
-install -m 0755 ./videodl "$HOME/.local/bin/videodl"
+./bin/install.sh
 videodl --help
 ```
 
@@ -331,3 +332,24 @@ the same supervisor; unknown sizes reserve renewable 64MiB chunks. FFmpeg disk
 checks run every 250ms. This is a best-effort guard, not a filesystem quota or
 cross-process capacity reservation. Insufficient space fails a job; free space
 then retry it. The default free-space margin is 2GiB.
+
+## Installer-managed updates
+
+Run `./bin/install.sh [PREFIX]` from an updated checkout; the default prefix is
+`~/.local`. It builds both the application and a temporary Go installer. All
+package files are prepared before services are stopped. Previously active daemons
+using that exact executable path are gracefully stopped and relaunched with their
+profiles, working directories and environment. Stopped daemons stay stopped.
+Readiness is checked by verifying that the daemon has taken the queue lock.
+
+An old daemon is also detected when a previous installer already replaced its
+executable inode. Foreground workers block replacement. Concurrent installs of
+one prefix are refused. Other installation prefixes are not changed.
+Configuration is not rewritten, queue state is not replaced, and setup need not
+be repeated. HTTP partials may resume; HLS/FFmpeg restart interrupted jobs.
+
+A handled replacement, restart or interruption failure triggers restoration of
+previous package files and previously active services. If restoration fails,
+its error is reported and required backups are retained. Queue progress is never
+rolled back. Power loss, SIGKILL and data-schema migrations are outside this
+mechanism. The installer does not fetch sources or edit shell startup files.
