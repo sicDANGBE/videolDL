@@ -19,6 +19,7 @@ type configCommandFlags struct {
 }
 
 type persistedConfig struct {
+	MinFreeSpace    string `json:"min_free_space"`
 	IdleTimeout     string `json:"idle_timeout"`
 	MaxHeight       int    `json:"max_height"`
 	Resume          bool   `json:"resume"`

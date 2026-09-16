@@ -9,8 +9,10 @@ import (
 	"io/fs"
 	"os"
 	"syscall"
+	"time"
 
 	"video-downloader/internal/config"
+	"video-downloader/internal/queue"
 )
 
 type daemonFlags struct {
@@ -138,6 +140,15 @@ func daemonStartWithPolicy(ctx context.Context, request daemonStartRequest) (err
 			return fmt.Errorf("remove stale daemon pid file: %w", err)
 		}
 	}
+	store, err := queue.NewStore(request.config.StatePath)
+	if err != nil {
+		return err
+	}
+	release, err := store.LockSupervisor()
+	if err != nil {
+		return err
+	}
+	release()
 	launchRequest, err := newDaemonLaunchRequest(request.options, request.flags, request.config)
 	if err != nil {
 		return err
@@ -181,6 +192,13 @@ func daemonStop(out io.Writer, loaded config.Config) error {
 		}
 		if err := process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("stop daemon process %d: %w", state.pid, err)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for processExists(state.pid) {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("arrêt en cours du processus %d ; réessayez daemon status avant de redémarrer", state.pid)
+			}
+			time.Sleep(25 * time.Millisecond)
 		}
 		if err := os.Remove(loaded.DaemonPIDPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove daemon pid file: %w", err)

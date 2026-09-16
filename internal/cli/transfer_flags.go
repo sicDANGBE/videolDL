@@ -34,5 +34,5 @@ func applyTransferOverrides(set *flag.FlagSet, f transferFlags, o *config.Overri
 	}
 }
 func downloadSettings(c config.Config) downloader.Settings {
-	return downloader.Settings{Retries: c.Retries, Resume: c.Resume, MaxHeight: c.MaxHeight, IdleTimeout: c.IdleTimeout}
+	return downloader.Settings{MinFreeSpace: c.MinFreeSpace, Retries: c.Retries, Resume: c.Resume, MaxHeight: c.MaxHeight, IdleTimeout: c.IdleTimeout}
 }

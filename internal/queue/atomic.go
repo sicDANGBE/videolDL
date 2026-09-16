@@ -2,6 +2,7 @@ package queue
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,3 +85,10 @@ func writeStateWithRename(path string, state persistedState, rename func(string,
 }
 
 func Snapshot(path string) ([]Job, error) { state, err := readState(path); return state.Jobs, err }
+
+func (store *Store) Snapshot(ctx context.Context) ([]Job, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return Snapshot(store.path)
+}

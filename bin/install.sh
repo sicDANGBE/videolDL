@@ -22,4 +22,4 @@ install -m 0644 internal/cli/assets/videodl.1 "$prefix/share/man/man1/videodl.1"
 install -m 0644 "$build_dir/videodl.bash" "$prefix/share/bash-completion/completions/videodl"
 install -m 0644 "$build_dir/_videodl" "$prefix/share/zsh/site-functions/_videodl"
 install -m 0644 "$build_dir/videodl.fish" "$prefix/share/fish/vendor_completions.d/videodl.fish"
-printf '%s\n' "Installed: $prefix/bin/videodl" "Ensure $prefix/bin is on PATH, then run videodl setup and videodl doctor." "Manual: man -l $prefix/share/man/man1/videodl.1" 'Bash: source <(videodl completion bash)' 'Stop an old videodl daemon before upgrading; restart with the new executable.'
+printf '%s\n' "Installé : $prefix/bin/videodl" "Vérifiez que $prefix/bin est dans PATH, puis lancez videodl et videodl doctor." "Premier lancement uniquement : videodl setup --destination DIR" "Manuel : man -l $prefix/share/man/man1/videodl.1" 'Bash: source <(videodl completion bash)' 'Un service déjà actif utilise encore son ancien exécutable ; arrêtez-le avant une mise à jour.'

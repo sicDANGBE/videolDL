@@ -16,7 +16,7 @@ func main() {
 
 	options := cli.Options{Args: os.Args[1:], Out: os.Stdout, ErrOut: os.Stderr}
 	if err := cli.Run(ctx, options); err != nil {
-		slog.Error("download failed", slog.Any("err", err))
+		slog.Error("commande échouée", slog.Any("err", err))
 		os.Exit(1)
 	}
 }

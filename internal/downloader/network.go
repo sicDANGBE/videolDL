@@ -13,14 +13,15 @@ import (
 
 // Settings are immutable while a Downloader is in use.
 type Settings struct {
-	Retries     int
-	Resume      bool
-	MaxHeight   int
-	IdleTimeout time.Duration
+	MinFreeSpace int64
+	Retries      int
+	Resume       bool
+	MaxHeight    int
+	IdleTimeout  time.Duration
 }
 
 func DefaultSettings() Settings {
-	return Settings{Retries: 3, Resume: true, IdleTimeout: 60 * time.Second}
+	return Settings{MinFreeSpace: 2 << 30, Retries: 3, Resume: true, IdleTimeout: 60 * time.Second}
 }
 func (d *Downloader) Configure(settings Settings) { d.settings = settings }
 

@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	MinFreeSpace    int64         `json:"-"`
 	IdleTimeout     time.Duration `json:"-"`
 	MaxHeight       int           `json:"max_height"`
 	Resume          bool          `json:"resume"`
@@ -62,7 +63,7 @@ func Defaults(homeDir, workingDir string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Config{Retries: 3, Resume: true, MaxHeight: 0, IdleTimeout: 60 * time.Second, ConfigPath: paths.Config, StatePath: paths.State, LogPath: paths.LogDir, Destination: paths.Destination, Concurrency: 1, Timeout: 30 * time.Second, DaemonPIDPath: paths.DaemonPID, DaemonLogPath: paths.DaemonLog}, nil
+	return Config{MinFreeSpace: 2 << 30, Retries: 3, Resume: true, MaxHeight: 0, IdleTimeout: 60 * time.Second, ConfigPath: paths.Config, StatePath: paths.State, LogPath: paths.LogDir, Destination: paths.Destination, Concurrency: 1, Timeout: 30 * time.Second, DaemonPIDPath: paths.DaemonPID, DaemonLogPath: paths.DaemonLog}, nil
 }
 
 func Load(options LoadOptions) (Config, error) {

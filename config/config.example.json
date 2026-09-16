@@ -1,5 +1,6 @@
 {
   "concurrency": 1,
+  "min_free_space": "2GiB",
   "timeout": "30s",
   "idle_timeout": "60s",
   "retries": 3,

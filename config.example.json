@@ -3,6 +3,7 @@
   "log_path": "/home/you/.local/state/videodl/logs",
   "destination": "/home/you/Videos/videodl",
   "concurrency": 1,
+  "min_free_space": "2GiB",
   "timeout": "30s",
   "ffmpeg": false,
   "ffmpeg_path": "",

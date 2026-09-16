@@ -51,10 +51,48 @@ func runFFmpegInputs(ctx context.Context, executable string, request Request, ca
 		args = append(args, "-i", audioURL, "-map", "0:v:0?", "-map", "1:a:0")
 	}
 	args = append(args, "-c", "copy", temporaryPath)
-	command := exec.CommandContext(ctx, executable, args...)
-	if output, runErr := command.CombinedOutput(); runErr != nil {
+	commandCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	monitorDone := make(chan struct{})
+	monitorResult := make(chan error, 1)
+	var size int64
+	go func() {
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-monitorDone:
+				monitorResult <- nil
+				return
+			case <-commandCtx.Done():
+				monitorResult <- nil
+				return
+			case <-ticker.C:
+				if err := request.space.external(temporaryPath, &size); err != nil {
+					monitorResult <- err
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	command := exec.CommandContext(commandCtx, executable, args...)
+	output, runErr := command.CombinedOutput()
+	close(monitorDone)
+	spaceErr := <-monitorResult
+	if spaceErr != nil {
+		return spaceErr
+	}
+	if runErr != nil {
 		return fmt.Errorf("ffmpeg: %w: %s", runErr, string(output))
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := request.space.external(temporaryPath, &size); err != nil {
+		return err
+	}
+
 	if err := publishOutput(temporaryPath, outputPath); err != nil {
 		return fmt.Errorf("rename ffmpeg output: %w", err)
 	}

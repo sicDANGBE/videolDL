@@ -13,7 +13,7 @@ import (
 var completionCommands = []string{"setup", "doctor", "help", "man", "add", "worker", "list", "status", "retry", "cancel", "config", "daemon", "watch", "completion"}
 var completionShells = []string{"bash", "zsh", "fish"}
 var completionFlags = []string{"--retries", "--resume", "--max-height", "--idle-timeout", "--name", "--output", "--watch", "--config", "--state", "--log", "--destination", "--concurrency", "--timeout", "--ffmpeg", "--ffmpeg-path", "--webhook", "--json", "--once", "--interval", "--help"}
-var completionConfigKeys = []string{"retries", "resume", "max_height", "idle_timeout", "state_path", "log_path", "destination", "concurrency", "timeout", "ffmpeg", "ffmpeg_path", "webhook_url", "editor", "auto_start_worker", "daemon_pid_path", "daemon_log_path", "notify_command"}
+var completionConfigKeys = []string{"min_free_space", "retries", "resume", "max_height", "idle_timeout", "state_path", "log_path", "destination", "concurrency", "timeout", "ffmpeg", "ffmpeg_path", "webhook_url", "editor", "auto_start_worker", "daemon_pid_path", "daemon_log_path", "notify_command"}
 
 func runCompletion(options Options, args []string) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {

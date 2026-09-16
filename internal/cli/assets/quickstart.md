@@ -3,7 +3,10 @@
 Ce dossier contient votre `config.json`, ce guide, le manuel `videodl.1` et
 les scripts d'autocomplétion `completions/` pour Bash, Zsh et Fish.
 `videodl setup` complète les fichiers manquants sans remplacer vos réglages.
-Aucun service ne démarre pendant la configuration.
+`setup --destination DIR` modifie uniquement la destination, même si le fichier
+existe déjà. `videodl` affiche les réglages effectifs et les commandes utiles.
+Aucun service ne démarre pendant la configuration. Les tâches déjà ajoutées gardent
+leur chemin de sortie ; la nouvelle destination concerne les prochains ajouts.
 
 ## Démarrage
 
@@ -34,6 +37,7 @@ Pour les prochaines tâches ajoutées, le démarrage peut être automatisé :
     videodl config show
     videodl config get destination
     videodl config set concurrency 2
+    videodl config set min_free_space 2GiB
     videodl config set retries 3
     videodl config set resume true
     videodl config set max_height 1080
@@ -106,6 +110,35 @@ La piste audio par défaut du groupe sélectionné est utilisée.
 Les nouvelles tentatives natives ne s'appliquent pas au processus FFmpeg.
 Le mode HLS intégré traite un instantané de playlist ; il ne capture pas un direct
 indéfiniment. Pour ces cas, utiliser explicitement FFmpeg.
+
+## Supervision et espace disque
+
+Un seul superviseur (`worker` ou daemon) peut traiter une même file. `concurrency`
+est la limite de téléchargements simultanés, de 1 à 8. Avec la valeur 8, neuf tâches
+produisent huit transferts actifs et une tâche en attente. Aucun processus
+supplémentaire n’est créé par tranche de huit tâches.
+
+`worker` traite les tâches en attente au démarrage, puis quitte. `worker --watch`
+et le daemon acceptent les nouveaux ajouts pendant les transferts en cours. Une
+place libérée est réutilisée immédiatement. Une lecture commune de la file chaque
+seconde détecte les nouveaux ajouts et les annulations (délai habituel : une seconde).
+La progression reste écrite au plus une fois par seconde et par tâche, puis à la fin.
+
+`min_free_space` réserve une marge de **2 Gio** par défaut. Les tailles HTTP connues
+sont additionnées pour les transferts du même superviseur sur le même système de
+fichiers. Les tailles inconnues utilisent une réserve renouvelable de 64 Mio par
+transfert. Le contrôle se répète pendant les écritures natives et toutes les 250 ms
+pour FFmpeg. En cas d’espace insuffisant, la tâche passe en échec ; libérez de
+l’espace, puis utilisez `retry ID`. Les partiels HTTP récupérables sont conservés.
+
+Ce contrôle est préventif, pas un quota : les autres processus et les écritures de
+FFmpeg entre deux vérifications peuvent réduire la marge. Des superviseurs de files
+différentes ne partagent pas leurs réservations. `0` supprime la marge minimale,
+mais conserve les vérifications de capacité. Les unités acceptées sont des entiers
+en octets, KiB, MiB, GiB ou TiB. `doctor` affiche l’espace disponible et la marge.
+
+Après un changement de réglage, un service actif doit être redémarré avec
+`videodl daemon restart`. `daemon stop` attend sa sortie avant d’annoncer l’arrêt.
 
 ## Dépannage
 

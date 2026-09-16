@@ -25,9 +25,6 @@ func (w *Worker) process(ctx context.Context, listed queue.Job) error {
 	request = request.WithOptions(job.DownloadOptions)
 	workCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	stopWatch := make(chan struct{})
-	defer close(stopWatch)
-	go watchCancellation(workCtx, stopWatch, cancel, w.get, job.ID)
 	var lastSaved time.Time
 	var latest downloader.Progress
 	var dirty bool
@@ -43,13 +40,14 @@ func (w *Worker) process(ctx context.Context, listed queue.Job) error {
 		return nil
 	}
 	err = w.downloader.DownloadWithProgress(workCtx, request, progress)
-	if dirty && !w.isCanceledJob(context.WithoutCancel(ctx), job.ID) {
+	userCanceled := errors.Is(context.Cause(ctx), errJobCanceled) || w.isCanceledJob(context.WithoutCancel(ctx), job.ID)
+	if dirty && !userCanceled {
 		if saveErr := w.update(context.WithoutCancel(ctx), job.ID, job.LeaseID, latest); saveErr != nil {
 			return errors.Join(err, fmt.Errorf("persist final progress: %w", saveErr))
 		}
 	}
 	if err != nil {
-		if ctx.Err() == nil && w.isCanceledJob(context.WithoutCancel(ctx), job.ID) {
+		if userCanceled {
 			return &jobError{err}
 		}
 		if ctx.Err() != nil || errors.Is(err, context.Canceled) {
@@ -64,30 +62,16 @@ func (w *Worker) process(ctx context.Context, listed queue.Job) error {
 		}
 		return w.fail(ctx, job.ID, job.LeaseID, err)
 	}
+	if userCanceled {
+		return &jobError{errJobCanceled}
+	}
 	if err := w.complete(ctx, job.ID, job.LeaseID); err != nil {
 		return fmt.Errorf("complete job %s: %w", job.ID, err)
 	}
 	return nil
 }
 
-func watchCancellation(ctx context.Context, stop <-chan struct{}, cancel context.CancelFunc, get func(context.Context, string) (queue.Job, error), id string) {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-ticker.C:
-			job, err := get(context.WithoutCancel(ctx), id)
-			if err == nil && job.Status == queue.StatusCanceled {
-				cancel()
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
+var errJobCanceled = errors.New("job canceled by user")
 
 func (w *Worker) isCanceledJob(ctx context.Context, id string) bool {
 	job, err := w.get(ctx, id)

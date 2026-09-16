@@ -27,6 +27,7 @@ func (u URL) String() string {
 }
 
 type Request struct {
+	space      *diskReservation
 	options    Overrides
 	source     URL
 	outputPath string

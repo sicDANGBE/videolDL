@@ -19,7 +19,7 @@ completions/videodl.zsh       autocomplétion Zsh
 completions/videodl.fish      autocomplétion Fish
 ```
 
-La configuration existante est conservée. Pour changer la destination ensuite :
+Sans option, la configuration existante est conservée. Pour changer la destination :
 `./videodl config set destination /chemin/absolu`.
 Aucun téléchargement ou service ne démarre pendant setup.
 
@@ -49,3 +49,12 @@ Installation facultative du programme, du manuel et des completions :
 
 Le préfixe par défaut est `~/.local`. Aucun fichier de démarrage du shell n'est
 modifié. Le guide créé par setup explique l'activation de la complétion.
+
+`setup --destination DIR` peut aussi modifier une configuration existante : seule
+la destination est changée. Sans cette option, les réglages sont préservés.
+`videodl` affiche le profil effectif. Un daemon actif doit être redémarré après
+une modification. Les tâches existantes conservent leur chemin de sortie.
+
+`min_free_space` vaut `2GiB` par défaut ; exemple :
+`videodl config set min_free_space 4GiB`. Voir le README principal pour la
+supervision continue et les limites du contrôle disque.

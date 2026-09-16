@@ -4,7 +4,8 @@
 
 Run `videodl setup --destination "$HOME/Videos/videodl"`, then `videodl doctor`.
 Setup creates a private configuration bundle with a guide, man page and Bash/Zsh/Fish
-completions, preserving existing files. `videodl help COMMAND` shows command help,
+completions. Without options, existing settings are preserved; an explicit
+`--destination DIR` updates only that setting. `videodl help COMMAND` shows command help,
 `videodl man` prints the bundled guide. `bin/install.sh [PREFIX]` installs the binary,
 manual and completions (default prefix: `~/.local`), without editing shell profiles.
 See [configuration guide](../config/README.md) and [README](../README.md) for the
@@ -101,6 +102,9 @@ The optional configuration file is strict JSON. Unknown keys, malformed JSON, an
 | `daemon_log_path` | stdout/stderr log file for the detached daemon process | `$XDG_STATE_HOME/videodl/logs/daemon.log`, or `~/.local/state/videodl/logs/daemon.log` |
 | `notify_command` | Optional direct-exec notification command for succeeded/failed jobs | disabled |
 
+`min_free_space` defaults to `2GiB` and accepts nonnegative integer bytes or KiB/MiB/GiB/TiB.
+Set it with `videodl config set min_free_space 2GiB` or `VIDEODL_MIN_FREE_SPACE`.
+
 `concurrency` must be an integer from `1` through `8`. Absolute paths are safest for global config because they work from any launch directory. If a relative path is supplied by a flag or hand-edited config, it is resolved from the command working directory before use. The program creates the destination and log directories when needed.
 
 To start from [`../config.example.json`](../config.example.json) instead of `config init`, copy it and replace `/home/you` with your home directory:
@@ -125,7 +129,7 @@ For values inside the selected file, precedence is:
 3. Environment variables.
 4. Command-line flags.
 
-Supported environment overrides are `VIDEODL_STATE_PATH`, `VIDEODL_LOG_PATH`, `VIDEODL_DESTINATION`, `VIDEODL_CONCURRENCY`, `VIDEODL_TIMEOUT`, `VIDEODL_FFMPEG`, `VIDEODL_FFMPEG_PATH`, `VIDEODL_WEBHOOK_URL`, `VIDEODL_EDITOR`, `VIDEODL_AUTO_START_WORKER`, `VIDEODL_DAEMON_PID_PATH`, `VIDEODL_DAEMON_LOG_PATH`, and `VIDEODL_NOTIFY_COMMAND`. `VIDEODL_CONFIG` selects the file and does not replace the other overrides. Command-line `--state`, `--log`, `--destination`, `--concurrency`, `--timeout`, `--ffmpeg`, `--ffmpeg-path`, and `--webhook` take priority over those environment values where the command supports them. The `--config` flag selects the file; it is not a JSON setting.
+Supported environment overrides are `VIDEODL_MIN_FREE_SPACE`, `VIDEODL_RETRIES`, `VIDEODL_RESUME`, `VIDEODL_MAX_HEIGHT`, `VIDEODL_IDLE_TIMEOUT`, `VIDEODL_STATE_PATH`, `VIDEODL_LOG_PATH`, `VIDEODL_DESTINATION`, `VIDEODL_CONCURRENCY`, `VIDEODL_TIMEOUT`, `VIDEODL_FFMPEG`, `VIDEODL_FFMPEG_PATH`, `VIDEODL_WEBHOOK_URL`, `VIDEODL_EDITOR`, `VIDEODL_AUTO_START_WORKER`, `VIDEODL_DAEMON_PID_PATH`, `VIDEODL_DAEMON_LOG_PATH`, and `VIDEODL_NOTIFY_COMMAND`. `VIDEODL_CONFIG` selects the file and does not replace the other overrides. Command-line `--state`, `--log`, `--destination`, `--concurrency`, `--timeout`, `--ffmpeg`, `--ffmpeg-path`, and `--webhook` take priority over those environment values where the command supports them. The `--config` flag selects the file; it is not a JSON setting.
 
 ## Queue operations
 
@@ -311,3 +315,19 @@ Only `http://` and `https://` URLs are accepted. The built-in HLS path supports 
 ## Legal and safety limits
 
 Use `videodl` only for content you are authorized to download and for destinations you control. Do not use it to bypass DRM, authentication, paywalls, copyright restrictions, or other access controls. The project makes no claim that arbitrary websites are supported, and it does not promise exact progress percentages for unknown-length or ffmpeg-managed transfers.
+
+## Continuous supervision and existing setup
+
+`setup --destination DIR` updates only the destination even when configuration
+already exists. `setup` alone preserves existing settings. General help displays
+the effective profile. Existing jobs keep their output path. Restart a running
+daemon to apply changed settings.
+
+There is one supervisor per queue, with at most eight concurrent transfers.
+Watch mode admits new jobs while existing jobs are running and immediately
+refills released slots. Cancellations share one snapshot poll per second.
+Disk admission accounts for known remaining HTTP bytes on each filesystem in
+the same supervisor; unknown sizes reserve renewable 64MiB chunks. FFmpeg disk
+checks run every 250ms. This is a best-effort guard, not a filesystem quota or
+cross-process capacity reservation. Insufficient space fails a job; free space
+then retry it. The default free-space margin is 2GiB.

@@ -22,7 +22,9 @@ Options must precede positional arguments. Existing output files are never repla
 .TP
 .B setup
 Create configuration, local guide, completions, manual and data directories.
-Existing configuration is preserved. No daemon is started.
+Without options, existing settings are preserved. --destination DIR updates only
+the destination, including in existing configurations. No daemon is started.
+Already queued jobs keep their saved output path.
 .TP
 .B doctor
 Read-only configuration, paths and FFmpeg diagnostics; no network access.
@@ -33,6 +35,8 @@ Queue a download. Returns a job identifier.
 .B worker [--watch]
 Drain queued jobs, or continue watching for new ones.
 A failed job does not terminate continuous supervision.
+Only one supervisor per queue is allowed. In watch mode, new jobs fill vacant
+slots while other transfers run. Shared cancellation polling runs once per second.
 .TP
 .B list / status JOB_ID / watch [--once] [--json]
 Inspect the queue, a job, or an automatically refreshed report.
@@ -50,7 +54,8 @@ Initialize, locate, inspect or edit settings. Example: config set concurrency 2.
 Print a shell completion script. See the setup guide for installation.
 .TP
 .B help [COMMAND] / man
-Display help or the embedded plain-text manual.
+Display help or the embedded plain-text manual. General help shows the effective
+configuration when available.
 .SH TRANSFER OPTIONS
 .TP
 .B --retries N
@@ -74,6 +79,16 @@ Simultaneous queued downloads, 1 through 8; default 1.
 .TP
 .B --ffmpeg / --ffmpeg-path PATH
 Force FFmpeg or select its executable. No byte resume with FFmpeg.
+.SH DISK SPACE
+min_free_space defaults to 2GiB. Set with config set min_free_space 2GiB,
+or VIDEODL_MIN_FREE_SPACE. Integers in bytes, KiB, MiB, GiB and TiB are accepted.
+Zero removes the floor but retains capacity checks.
+Known HTTP sizes are reserved across active transfers of the same supervisor
+and filesystem. Unknown sizes use renewable 64MiB reservations.
+Native writes check periodically; FFmpeg is checked every 250ms.
+This is a best-effort guard, not a quota or a reservation across processes.
+Insufficient space fails the job; free space then retry JOB_ID.
+Restart a running daemon after configuration changes.
 .SH FILES
 .TP
 .I ~/.config/videodl/config.json

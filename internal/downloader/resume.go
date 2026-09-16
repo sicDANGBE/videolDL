@@ -155,6 +155,11 @@ func (d *Downloader) fileAttempt(ctx context.Context, request Request, response 
 	} else {
 		return fmt.Errorf("unexpected media HTTP status %d", response.StatusCode)
 	}
+	if request.space != nil {
+		if err := request.space.size(total - offset); err != nil {
+			return err
+		}
+	}
 	state = resumeState{SourceHash: sourceHash(request.Source().String()), ETag: response.Header.Get("ETag"), Total: total}
 	resumable := d.settings.Resume && strongETag(state.ETag)
 	if !resumable {
@@ -180,7 +185,7 @@ func (d *Downloader) fileAttempt(ctx context.Context, request Request, response 
 		_ = os.Remove(files.metadata)
 	}
 	progress := &progressState{callback: callback, bytesDownloaded: offset, totalBytes: max(total, 0), totalKnown: total >= 0}
-	if _, err := io.Copy(progressWriter{destination: file, state: progress}, response.Body); err != nil {
+	if _, err := io.Copy(progressWriter{destination: request.space.writer(file), state: progress}, response.Body); err != nil {
 		return fmt.Errorf("copy media: %w", err)
 	}
 	if total >= 0 && progress.bytesDownloaded != total {

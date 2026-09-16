@@ -11,7 +11,7 @@ import (
 )
 
 func fromConfig(loaded config.Config) persistedConfig {
-	return persistedConfig{Retries: loaded.Retries, Resume: loaded.Resume, MaxHeight: loaded.MaxHeight, IdleTimeout: loaded.IdleTimeout.String(), StatePath: loaded.StatePath, LogPath: loaded.LogPath, Destination: loaded.Destination, Concurrency: loaded.Concurrency, Timeout: loaded.Timeout.String(), FFmpeg: loaded.FFmpeg, FFmpegPath: loaded.FFmpegPath, WebhookURL: loaded.WebhookURL, Editor: loaded.Editor, AutoStartWorker: loaded.AutoStartWorker, DaemonPIDPath: loaded.DaemonPIDPath, DaemonLogPath: loaded.DaemonLogPath, NotifyCommand: loaded.NotifyCommand}
+	return persistedConfig{MinFreeSpace: config.FormatSpace(loaded.MinFreeSpace), Retries: loaded.Retries, Resume: loaded.Resume, MaxHeight: loaded.MaxHeight, IdleTimeout: loaded.IdleTimeout.String(), StatePath: loaded.StatePath, LogPath: loaded.LogPath, Destination: loaded.Destination, Concurrency: loaded.Concurrency, Timeout: loaded.Timeout.String(), FFmpeg: loaded.FFmpeg, FFmpegPath: loaded.FFmpegPath, WebhookURL: loaded.WebhookURL, Editor: loaded.Editor, AutoStartWorker: loaded.AutoStartWorker, DaemonPIDPath: loaded.DaemonPIDPath, DaemonLogPath: loaded.DaemonLogPath, NotifyCommand: loaded.NotifyCommand}
 }
 
 func formatConfig(stored persistedConfig) string {
@@ -24,6 +24,8 @@ func formatConfig(stored persistedConfig) string {
 
 func configValue(stored persistedConfig, key string) (string, error) {
 	switch key {
+	case "min_free_space":
+		return stored.MinFreeSpace, nil
 	case "idle_timeout":
 		return stored.IdleTimeout, nil
 	case "max_height":
@@ -73,6 +75,12 @@ func mustConfigValue(stored persistedConfig, key string) string {
 
 func setConfigValue(stored *persistedConfig, key, value, workingDir string) error {
 	switch key {
+	case "min_free_space":
+		parsed, err := config.ParseSpace(value)
+		if err != nil {
+			return err
+		}
+		stored.MinFreeSpace = config.FormatSpace(parsed)
 	case "idle_timeout":
 		parsed, err := time.ParseDuration(value)
 		if err != nil {

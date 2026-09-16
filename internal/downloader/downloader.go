@@ -17,13 +17,14 @@ type Downloader struct {
 	client     *http.Client
 	ffmpegPath string
 	settings   Settings
+	space      *diskBudget
 }
 
 func New(client *http.Client, ffmpegPath string) *Downloader {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &Downloader{client: client, ffmpegPath: ffmpegPath, settings: DefaultSettings()}
+	return &Downloader{client: client, ffmpegPath: ffmpegPath, settings: DefaultSettings(), space: newDiskBudget()}
 }
 
 func NewHTTPClient(timeout time.Duration) *http.Client {
@@ -55,6 +56,12 @@ func (d *Downloader) DownloadWithProgress(ctx context.Context, request Request, 
 		return err
 	}
 	defer files.close()
+	reservation, err := d.space.reserve(request.OutputPath(), d.settings.MinFreeSpace)
+	if err != nil {
+		return err
+	}
+	defer reservation.release()
+	request.space = reservation
 	if (request.UseFFmpeg() || isDASH(request.Source())) && d.settings.MaxHeight > 0 {
 		return fmt.Errorf("--max-height applies to native HLS selection; remove --ffmpeg and use an HLS master URL")
 	}
@@ -125,6 +132,7 @@ func (d *Downloader) downloadPlaylist(ctx context.Context, download playlistDown
 	if audioURL != "" || download.current.requiresFFmpeg || (extension == ".mkv" || (download.current.mapURI == "" && extension == ".mp4")) {
 		// Use FFmpeg for actual remuxing and separate audio, never rename TS bytes to MP4.
 		selectedRequest, err := NewRequest(download.source.String(), download.request.OutputPath(), true)
+		selectedRequest.space = download.request.space
 		if err != nil {
 			return err
 		}
@@ -138,6 +146,7 @@ func (d *Downloader) downloadPlaylist(ctx context.Context, download playlistDown
 		return runFFmpegInputs(ctx, executable, selectedRequest, download.callback, audioURL, d.settings.IdleTimeout)
 	}
 	return writeAtomic(download.request.OutputPath(), func(writer io.Writer) error {
+		writer = download.request.space.writer(writer)
 		state := &progressState{callback: download.callback}
 		if download.current.mapURI != "" {
 			mapURL, err := resolveURL(download.source, download.current.mapURI)

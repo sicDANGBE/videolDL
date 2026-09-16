@@ -20,6 +20,11 @@ func runDaemonWorker(ctx context.Context, options Options, args []string) error 
 	if len(positional) != 0 {
 		return fmt.Errorf("usage: videodl __daemon-worker [flags]")
 	}
+	release, err := runtime.store.LockSupervisor()
+	if err != nil {
+		return err
+	}
+	defer release()
 	dl := downloader.New(runtime.client, runtime.config.FFmpegPath)
 	dl.Configure(downloadSettings(runtime.config))
 	workerDownloader := &configuredDownloader{delegate: dl, ffmpeg: runtime.config.FFmpeg}

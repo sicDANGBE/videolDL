@@ -12,6 +12,7 @@ import (
 )
 
 type fileConfig struct {
+	MinFreeSpace    *string `json:"min_free_space"`
 	IdleTimeout     *string `json:"idle_timeout"`
 	MaxHeight       *int    `json:"max_height"`
 	Resume          *bool   `json:"resume"`
@@ -107,6 +108,13 @@ func loadFile(config *Config, path string, explicit bool) error {
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
 		return fmt.Errorf("%w: config file contains multiple JSON values", ErrInvalidJSON)
 	}
+	if decoded.MinFreeSpace != nil {
+		value, err := ParseSpace(*decoded.MinFreeSpace)
+		if err != nil {
+			return err
+		}
+		config.MinFreeSpace = value
+	}
 	if decoded.Retries != nil {
 		config.Retries = *decoded.Retries
 	}
@@ -172,11 +180,18 @@ func loadFile(config *Config, path string, explicit bool) error {
 func ApplyEnvironment(config *Config, env []string) error {
 	values := map[string]string{}
 	for _, item := range env {
-		for _, key := range []string{"VIDEODL_RETRIES", "VIDEODL_CONFIG", "VIDEODL_STATE_PATH", "VIDEODL_LOG_PATH", "VIDEODL_DESTINATION", "VIDEODL_CONCURRENCY", "VIDEODL_TIMEOUT", "VIDEODL_FFMPEG", "VIDEODL_FFMPEG_PATH", "VIDEODL_WEBHOOK_URL", "VIDEODL_EDITOR", "VIDEODL_AUTO_START_WORKER", "VIDEODL_DAEMON_PID_PATH", "VIDEODL_DAEMON_LOG_PATH", "VIDEODL_NOTIFY_COMMAND"} {
+		for _, key := range []string{"VIDEODL_MIN_FREE_SPACE", "VIDEODL_RESUME", "VIDEODL_MAX_HEIGHT", "VIDEODL_IDLE_TIMEOUT", "VIDEODL_RETRIES", "VIDEODL_CONFIG", "VIDEODL_STATE_PATH", "VIDEODL_LOG_PATH", "VIDEODL_DESTINATION", "VIDEODL_CONCURRENCY", "VIDEODL_TIMEOUT", "VIDEODL_FFMPEG", "VIDEODL_FFMPEG_PATH", "VIDEODL_WEBHOOK_URL", "VIDEODL_EDITOR", "VIDEODL_AUTO_START_WORKER", "VIDEODL_DAEMON_PID_PATH", "VIDEODL_DAEMON_LOG_PATH", "VIDEODL_NOTIFY_COMMAND"} {
 			if len(item) > len(key)+1 && item[:len(key)] == key && item[len(key)] == '=' {
 				values[key] = item[len(key)+1:]
 			}
 		}
+	}
+	if value, ok := values["VIDEODL_MIN_FREE_SPACE"]; ok {
+		parsed, err := ParseSpace(value)
+		if err != nil {
+			return err
+		}
+		config.MinFreeSpace = parsed
 	}
 	if value, ok := values["VIDEODL_RETRIES"]; ok {
 		parsed, err := strconv.Atoi(value)
@@ -265,6 +280,9 @@ func ApplyEnvironment(config *Config, env []string) error {
 }
 
 func validate(config *Config) error {
+	if config.MinFreeSpace < 0 {
+		return &ValidationError{Field: "min_free_space", Rule: "must be nonnegative"}
+	}
 	if config.Retries < 0 || config.Retries > 10 {
 		return &ValidationError{Field: "retries", Rule: "must be between 0 and 10"}
 	}

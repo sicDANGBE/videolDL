@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"video-downloader/internal/config"
 )
 
@@ -20,21 +22,36 @@ var quickstart string
 //go:embed assets/videodl.1
 var manual string
 
-func topHelp(out io.Writer) error {
-	_, err := fmt.Fprintln(out, `videodl — téléchargement de vidéos HTTP/HLS et file persistante
-
-Première utilisation :
-  videodl setup --destination "$HOME/Videos/videodl"
-  videodl doctor
-  videodl add --name video.mp4 URL
-  videodl worker
-  videodl watch --once
-
+func topHelp(options Options) error {
+	out := options.Out
+	fmt.Fprintln(out, "videodl — téléchargement de vidéos HTTP/HLS et file persistante")
+	wd, err := configWorkingDir(options)
+	var loaded config.Config
+	if err == nil {
+		loaded, err = config.Load(config.LoadOptions{HomeDir: options.HomeDir, WorkingDir: wd, Env: options.Env})
+	}
+	if err != nil {
+		fmt.Fprintln(out, "\nConfiguration indisponible : lancez videodl doctor pour le diagnostic.")
+	} else if _, statErr := os.Stat(loaded.ConfigPath); statErr == nil {
+		fmt.Fprintf(out, "\nConfiguration existante : %s\nDestination effective : %s\nTéléchargements simultanés : %d (maximum 8)\nMarge disque : %s\nDémarrage automatique : %t\n", loaded.ConfigPath, loaded.Destination, loaded.Concurrency, config.FormatSpace(loaded.MinFreeSpace), loaded.AutoStartWorker)
+		fmt.Fprintln(out, "\nChanger de destination : videodl config set destination DIR\nVérifier les réglages : videodl doctor")
+	} else if os.IsNotExist(statErr) {
+		fmt.Fprintf(out, "\nAucun fichier de configuration : valeurs par défaut et environnement.\nDestination effective : %s\nPremière utilisation :\n  videodl setup --destination DIR\n  videodl doctor\n", loaded.Destination)
+	} else {
+		fmt.Fprintln(out, "\nFichier de configuration inaccessible : lancez videodl doctor.")
+	}
+	fmt.Fprintln(out, "\nAjouter : videodl add --name video.mp4 URL\nSuivre : videodl watch --once")
+	if err == nil && loaded.AutoStartWorker {
+		fmt.Fprintln(out, "Le service démarre automatiquement à l’ajout ; état : videodl daemon status")
+	} else {
+		fmt.Fprintln(out, "Traiter la file : videodl worker (ou daemon start pour surveiller les ajouts)")
+	}
+	_, err = fmt.Fprintln(out, `
 Commandes :
-  setup                 Préparer la configuration et le guide local
+  setup                 Préparer les fichiers ; --destination DIR change la destination
   doctor                Vérifier la configuration et les outils disponibles
   add                   Ajouter une URL à la file
-  worker [--watch]      Télécharger, puis quitter ou surveiller la file
+  worker [--watch]       Traiter la file initiale ou surveiller les nouveaux ajouts
   list / status ID      Consulter les téléchargements
   watch [--once]        Tableau de suivi
   retry ID / cancel ID  Relancer ou annuler
@@ -49,8 +66,8 @@ Téléchargement immédiat :
 
 Options de transfert : --config, --retries, --resume=false,
   --max-height, --idle-timeout, --timeout, --ffmpeg, --ffmpeg-path
-Les options précèdent l'URL ou l'identifiant. Aucun fichier existant n'est écrasé.
-Queue commands: add, worker, list, status, watch, retry, cancel, config, daemon, completion`)
+Les options précèdent l'URL ou l'identifiant. Aucun fichier vidéo existant n'est écrasé.
+Les réglages s’appliquent aux prochains processus ; un service actif doit être redémarré.`)
 	return err
 }
 
@@ -59,9 +76,9 @@ func runSetup(options Options, args []string) error {
 	set.SetOutput(options.Out)
 	var path, destination string
 	set.StringVar(&path, "config", "", "chemin du fichier de configuration")
-	set.StringVar(&destination, "destination", "", "destination des vidéos, à la création uniquement")
+	set.StringVar(&destination, "destination", "", "créer ou changer la destination des vidéos (autres réglages préservés)")
 	set.Usage = func() {
-		fmt.Fprintln(options.Out, "Usage: videodl setup [--config FILE] [--destination DIR]\nPrépare les fichiers manquants et préserve la configuration existante.")
+		fmt.Fprintln(options.Out, "Usage: videodl setup [--config FILE] [--destination DIR]\nPrépare les fichiers manquants. Sans option, préserve les réglages ; --destination modifie uniquement cette valeur.")
 		set.PrintDefaults()
 	}
 	if err := set.Parse(args); err != nil {
@@ -84,31 +101,67 @@ func runSetup(options Options, args []string) error {
 	if !filepath.IsAbs(selected) {
 		selected = filepath.Join(wd, selected)
 	}
-	if _, err := os.Stat(selected); os.IsNotExist(err) {
-		if destination != "" {
-			loaded.Destination, err = config.ResolveDestination(destination, wd)
-			if err != nil {
-				return err
-			}
-		}
-		if err := writePersistedConfig(selected, fromConfig(loaded)); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	} else if destination != "" {
+	_, statErr := os.Stat(selected)
+	if statErr != nil && !os.IsNotExist(statErr) {
+		return statErr
+	}
+	if destination != "" {
 		resolved, err := config.ResolveDestination(destination, wd)
 		if err != nil {
 			return err
 		}
-		if resolved != loaded.Destination {
-			return fmt.Errorf("configuration existante préservée ; utilisez videodl config set destination DIR pour la changer")
+		if err := os.MkdirAll(resolved, 0o700); err != nil {
+			return fmt.Errorf("créer la destination : %w", err)
 		}
+		loaded.Destination = resolved
+	}
+	if os.IsNotExist(statErr) {
+		if err := writePersistedConfig(selected, fromConfig(loaded)); err != nil {
+			return err
+		}
+	} else if destination != "" {
+		// Patch only the explicitly requested field; environment overrides must not
+		// become permanent settings as a side effect of setup.
+		data, err := os.ReadFile(selected)
+		if err != nil {
+			return err
+		}
+		var stored map[string]json.RawMessage
+		if err := json.Unmarshal(data, &stored); err != nil {
+			return err
+		}
+		if stored == nil {
+			stored = make(map[string]json.RawMessage)
+		}
+		stored["destination"], err = json.Marshal(loaded.Destination)
+		if err != nil {
+			return err
+		}
+		data, err = json.MarshalIndent(stored, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := writeConfigAtomic(selected, append(data, '\n')); err != nil {
+			return err
+		}
+	}
+	loaded, err = config.Load(config.LoadOptions{ConfigPath: selected, HomeDir: options.HomeDir, WorkingDir: wd, Env: options.Env})
+	if err != nil {
+		return err
 	}
 	if err := writeSetupFiles(selected, loaded); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(options.Out, "Configuration prête : %s\nDestination : %s\nGuide : %s\nSuite : videodl doctor, puis videodl add --name video.mp4 URL et videodl worker\n", selected, loaded.Destination, filepath.Join(filepath.Dir(selected), "README.md"))
+	_, err = fmt.Fprintf(options.Out, "Configuration prête : %s\nDestination effective : %s\nGuide : %s\nSuite : videodl doctor, puis videodl add --name video.mp4 URL\n", selected, loaded.Destination, filepath.Join(filepath.Dir(selected), "README.md"))
+	if destination != "" && envValue(options.Env, "VIDEODL_DESTINATION") != "" {
+		fmt.Fprintln(options.Out, "VIDEODL_DESTINATION est prioritaire sur la destination enregistrée.")
+	}
+	if loaded.AutoStartWorker {
+		fmt.Fprintln(options.Out, "Démarrage automatique activé ; suivi : videodl watch --once")
+	} else {
+		fmt.Fprintln(options.Out, "Traiter la file : videodl worker ; suivi : videodl watch --once")
+	}
+	fmt.Fprintln(options.Out, "Si un service est actif, appliquez les réglages avec videodl daemon restart.")
 	return err
 }
 func writeSetupFiles(path string, c config.Config) error {
@@ -183,6 +236,15 @@ func runDoctor(options Options, args []string) error {
 		}
 		fmt.Fprintf(options.Out, "%s : %s (%s)\n", item.name, item.path, state)
 	}
+	fmt.Fprintf(options.Out, "Concurrence : %d / 8 ; marge disque : %s\n", loaded.Concurrency, config.FormatSpace(loaded.MinFreeSpace))
+	var disk syscall.Statfs_t
+	if err := syscall.Statfs(loaded.Destination, &disk); err == nil {
+		free := int64(disk.Bavail) * int64(disk.Bsize)
+		fmt.Fprintf(options.Out, "Espace disponible : %.2f Gio\n", float64(free)/(1<<30))
+		if free < loaded.MinFreeSpace {
+			return fmt.Errorf("espace disponible inférieur à min_free_space")
+		}
+	}
 	ffmpeg := loaded.FFmpegPath
 	if ffmpeg == "" {
 		ffmpeg = "ffmpeg"
@@ -201,7 +263,7 @@ func runDoctor(options Options, args []string) error {
 }
 func runHelp(ctx context.Context, options Options, args []string) error {
 	if len(args) == 0 {
-		return topHelp(options.Out)
+		return topHelp(options)
 	}
 	if len(args) > 1 || !isCommand(args[0]) || strings.HasPrefix(args[0], "__") || args[0] == "help" {
 		return fmt.Errorf("usage: videodl help [COMMANDE]")

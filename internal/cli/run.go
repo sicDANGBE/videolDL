@@ -27,7 +27,7 @@ func Run(ctx context.Context, options Options) error {
 		options.ErrOut = os.Stderr
 	}
 	if len(options.Args) == 0 || (len(options.Args) == 1 && (options.Args[0] == "--help" || options.Args[0] == "-h")) {
-		return topHelp(options.Out)
+		return topHelp(options)
 	}
 	if !isCommand(options.Args[0]) {
 		return runLegacy(ctx, options)

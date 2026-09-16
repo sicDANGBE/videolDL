@@ -13,7 +13,7 @@ func TestRun_help_shows_global_worker_commands_when_requested(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{name: "top level", args: []string{"--help"}, want: []string{"Queue commands: add, worker, list, status, watch, retry, cancel, config, daemon, completion"}},
+		{name: "top level", args: []string{"--help"}, want: []string{"Commandes :"}},
 		{name: "config", args: []string{"config", "--help"}, want: []string{"Usage: videodl config init|path|show|get|set|edit", "config set [flags] KEY VALUE"}},
 		{name: "daemon", args: []string{"daemon", "--help"}, want: []string{"Usage: videodl daemon start|stop|status|restart|logs"}},
 		{name: "completion", args: []string{"completion", "--help"}, want: []string{"Usage: videodl completion bash|zsh|fish"}},

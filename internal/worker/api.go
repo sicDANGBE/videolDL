@@ -129,3 +129,12 @@ func (w *Worker) requeue(ctx context.Context, id, lease string) error {
 	}
 	return w.queue.Requeue(ctx, id)
 }
+
+func (w *Worker) snapshot(ctx context.Context) ([]queue.Job, error) {
+	if reader, ok := w.queue.(interface {
+		Snapshot(context.Context) ([]queue.Job, error)
+	}); ok {
+		return reader.Snapshot(ctx)
+	}
+	return w.list(ctx)
+}
