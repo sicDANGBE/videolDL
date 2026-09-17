@@ -76,18 +76,8 @@ func runConfigCommand(ctx context.Context, options Options, args []string) error
 
 func parseConfigFlags(name string, args []string, options Options) (configCommandFlags, []string, error) {
 	flags := configCommandFlags{}
-	set := flag.NewFlagSet("videodl config "+name, flag.ContinueOnError)
-	set.SetOutput(options.Out)
-	set.Usage = func() {
-		_, _ = fmt.Fprintf(options.Out, "Usage: videodl config %s [flags]\n\nOptions:\n", name)
-		set.PrintDefaults()
-	}
-	set.StringVar(&flags.configPath, "config", "", "chemin du fichier de configuration")
-	set.BoolVar(&flags.json, "json", false, "émettre du JSON")
-	set.BoolVar(&flags.help, "help", false, "afficher cette aide")
-	if name == "edit" {
-		set.StringVar(&flags.editor, "editor", "", "éditeur à utiliser pour cette invocation")
-	}
+	values := commandFlags{}
+	set := commandFlagSet("config "+name, &values, options.Out)
 	if err := set.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.help = true
@@ -95,6 +85,7 @@ func parseConfigFlags(name string, args []string, options Options) (configComman
 		}
 		return configCommandFlags{}, nil, err
 	}
+	flags = configCommandFlags{configPath: values.configPath, editor: values.editor, json: values.json, help: values.help}
 	if flags.help {
 		set.Usage()
 	}

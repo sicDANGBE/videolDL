@@ -23,16 +23,13 @@ func runAdd(ctx context.Context, options Options, args []string) error {
 		return nil
 	}
 	defer rt.close()
-	if len(positional) != 1 {
-		return fmt.Errorf("usage: videodl add [flags] URL")
-	}
-	source, err := downloader.ParseURL(positional[0])
+	name, rawURL, err := addArguments(rt.flags, positional)
 	if err != nil {
 		return err
 	}
-	name := rt.flags.name
-	if rt.flags.output != "" {
-		name = rt.flags.output
+	source, err := downloader.ParseURL(rawURL)
+	if err != nil {
+		return err
 	}
 	if name == "" {
 		name = filepath.Base(sourcePath(source.String()))
@@ -59,6 +56,33 @@ func runAdd(ctx context.Context, options Options, args []string) error {
 		}
 	}
 	return writeValue(options, rt.flags.json, job, fmt.Sprintf("added %s -> %s\n", job.ID, job.OutputPath))
+}
+
+func addArguments(flags commandFlags, args []string) (string, string, error) {
+	if flags.nameSet && flags.outputSet {
+		return "", "", fmt.Errorf("nom défini deux fois : utiliser --name/-n ou --output/-o")
+	}
+	name := flags.name
+	if flags.outputSet {
+		name = flags.output
+	}
+	if (flags.nameSet || flags.outputSet) && name == "" {
+		return "", "", fmt.Errorf("le nom du fichier ne doit pas être vide")
+	}
+	switch len(args) {
+	case 1:
+		return name, args[0], nil
+	case 2:
+		if flags.nameSet || flags.outputSet {
+			return "", "", fmt.Errorf("nom défini deux fois : utiliser add NOM URL ou add --name NOM URL")
+		}
+		if args[0] == "" {
+			return "", "", fmt.Errorf("le nom du fichier ne doit pas être vide")
+		}
+		return args[0], args[1], nil
+	default:
+		return "", "", fmt.Errorf("usage: videodl add [options] [NOM] URL")
+	}
 }
 
 func parseAddFlags(args []string, options Options) (runtime, []string, error) {

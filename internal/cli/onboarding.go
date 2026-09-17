@@ -40,7 +40,7 @@ func topHelp(options Options) error {
 	} else {
 		fmt.Fprintln(out, "\nFichier de configuration inaccessible : lancez videodl doctor.")
 	}
-	fmt.Fprintln(out, "\nAjouter : videodl add --name video.mp4 URL\nSuivre : videodl watch --once")
+	fmt.Fprintln(out, "\nAjouter : videodl add video.mp4 URL\nSuivre : videodl watch --once")
 	if err == nil && loaded.AutoStartWorker {
 		fmt.Fprintln(out, "Le service démarre automatiquement à l’ajout ; état : videodl daemon status")
 	} else {
@@ -64,29 +64,27 @@ Commandes :
 Téléchargement immédiat :
   videodl --output video.mp4 URL
 
-Options de transfert : --config, --retries, --resume=false,
-  --max-height, --idle-timeout, --timeout, --ffmpeg, --ffmpeg-path
-Les options précèdent l'URL ou l'identifiant. Aucun fichier vidéo existant n'est écrasé.
+Ajout avec nom : videodl add video.mp4 URL (ou add -n video.mp4 URL)
+Options disponibles et raccourcis : videodl COMMANDE -h
+Les options précèdent le nom, l'URL ou l'identifiant. Aucun fichier vidéo existant n'est écrasé.
 Les réglages s’appliquent aux prochains processus ; un service actif doit être redémarré.`)
 	return err
 }
 
 func runSetup(options Options, args []string) error {
-	set := flag.NewFlagSet("videodl setup", flag.ContinueOnError)
-	set.SetOutput(options.Out)
-	var path, destination string
-	set.StringVar(&path, "config", "", "chemin du fichier de configuration")
-	set.StringVar(&destination, "destination", "", "créer ou changer la destination des vidéos (autres réglages préservés)")
-	set.Usage = func() {
-		fmt.Fprintln(options.Out, "Usage: videodl setup [--config FILE] [--destination DIR]\nPrépare les fichiers manquants. Sans option, préserve les réglages ; --destination modifie uniquement cette valeur.")
-		set.PrintDefaults()
-	}
+	values := commandFlags{}
+	set := commandFlagSet("setup", &values, options.Out)
 	if err := set.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
 	}
+	if values.help {
+		set.Usage()
+		return nil
+	}
+	path, destination := values.configPath, values.destination
 	if set.NArg() != 0 {
 		return fmt.Errorf("usage: videodl setup [options]")
 	}
@@ -152,7 +150,7 @@ func runSetup(options Options, args []string) error {
 	if err := writeSetupFiles(selected, loaded); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(options.Out, "Configuration prête : %s\nDestination effective : %s\nGuide : %s\nSuite : videodl doctor, puis videodl add --name video.mp4 URL\n", selected, loaded.Destination, filepath.Join(filepath.Dir(selected), "README.md"))
+	_, err = fmt.Fprintf(options.Out, "Configuration prête : %s\nDestination effective : %s\nGuide : %s\nSuite : videodl doctor, puis videodl add video.mp4 URL\n", selected, loaded.Destination, filepath.Join(filepath.Dir(selected), "README.md"))
 	if destination != "" && envValue(options.Env, "VIDEODL_DESTINATION") != "" {
 		fmt.Fprintln(options.Out, "VIDEODL_DESTINATION est prioritaire sur la destination enregistrée.")
 	}
@@ -199,16 +197,19 @@ func writeSetupFiles(path string, c config.Config) error {
 	return nil
 }
 func runDoctor(options Options, args []string) error {
-	set := flag.NewFlagSet("videodl doctor", flag.ContinueOnError)
-	set.SetOutput(options.Out)
-	var path string
-	set.StringVar(&path, "config", "", "fichier de configuration")
+	values := commandFlags{}
+	set := commandFlagSet("doctor", &values, options.Out)
 	if err := set.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
 	}
+	if values.help {
+		set.Usage()
+		return nil
+	}
+	path := values.configPath
 	if set.NArg() != 0 {
 		return fmt.Errorf("usage: videodl doctor [--config FILE]")
 	}
@@ -262,7 +263,7 @@ func runDoctor(options Options, args []string) error {
 	return nil
 }
 func runHelp(ctx context.Context, options Options, args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || (len(args) == 1 && (args[0] == "--help" || args[0] == "-h")) {
 		return topHelp(options)
 	}
 	if len(args) > 1 || !isCommand(args[0]) || strings.HasPrefix(args[0], "__") || args[0] == "help" {

@@ -134,13 +134,30 @@ Supported environment overrides are `VIDEODL_MIN_FREE_SPACE`, `VIDEODL_RETRIES`,
 
 ## Queue operations
 
-All queue commands accept the shared flags shown by their help output, including `--config`, `--state`, `--log`, `--destination`, `--concurrency`, `--timeout`, `--ffmpeg-path`, `--ffmpeg`, `--webhook`, and `--json` where applicable. Only `add` uses `--name` and `--output` to choose a safe output file name; `--output` is an alias there. Other queue commands do not use those flags for output selection. A name must be a single file name, not a path. The examples below use fixed, safe names inside the configured destination.
+Each command accepts only its relevant options; `videodl COMMAND -h` lists their long and short forms. Unknown or irrelevant options are rejected. Options precede the first positional argument.
+
+| Command | Options (in addition to `--help` / `-h`) |
+|---|---|
+| `add` | config, state, log, destination, name, output, webhook, json, retries, resume, max-height, idle-timeout, ffmpeg |
+| `worker` | config, state, log, concurrency, timeout, ffmpeg-path, webhook, watch, retries, resume, max-height, idle-timeout, ffmpeg |
+| `list`, `status` | config, state, json |
+| `retry`, `cancel` | config, state, log, webhook, json |
+| `watch` | config, state, json, once, interval |
+| `setup` | config, destination |
+| `doctor`, `daemon SUBCOMMAND`, `config init/path/get/set` | config |
+| `config show` | config, json |
+| `config edit` | config, editor |
+| Direct download | config, output, timeout, ffmpeg-path, retries, resume, max-height, idle-timeout, ffmpeg |
+
+Use `--` before a filename starting with a dash. Short options accept a separate value or `=`, such as `-n example.mp4` and `-n=example.mp4`; attached values (`-j8`) and grouped options are not supported. Boolean values use `=true` or `=false`, including `-R=false`. The [README](../README.md#arguments-et-options-courtes) lists every short option. Their precedence matches the long options, including explicit zero and false values.
 
 ### Add without downloading
 
 ```bash
-videodl add --name example.mp4 'https://example.com/video.mp4'
+videodl add example.mp4 'https://example.com/video.mp4'
 ```
+
+`add NAME URL`, `add -n NAME URL`, and `add --name NAME URL` are equivalent. `--output` / `-o` is also an alias for the name on `add`. A name must be a single filename, not a path; a positional name cannot be combined with a name option. Quote names containing spaces.
 
 `add` validates the HTTP(S) URL, creates a queued job, and returns its job ID. It does not fetch the URL. If no name is supplied, the final URL path component is used where possible, otherwise `video.bin` is used. When `auto_start_worker` is `true`, `add` starts the daemon after the job is persisted unless a matching daemon is already running.
 
@@ -279,7 +296,9 @@ mkdir -p ~/.config/fish/completions
 videodl completion fish > ~/.config/fish/completions/videodl.fish
 ```
 
-Completions cover top-level commands, common flags, config subcommands and keys, daemon subcommands, completion shells, and job IDs for `status`, `retry`, and `cancel` when the configured queue can be read.
+Completion shares option definitions with parsing and help. It offers only options valid for the selected command, hides already used options, and completes expected values (paths, booleans, known numeric values) instead of flags. For example, `add --name --` offers no options because a filename is expected. Options stop being suggested after the first positional argument. Subcommands, config keys and values, shell names, and job IDs for `status`, `retry`, and `cancel` are also completed. Job IDs use the chosen `--config` / `-c` and `--state` / `-s` without modifying the queue.
+
+After an upgrade, reload the completion script in an already open shell; for Bash: `source <(videodl completion bash)`. Paths containing spaces and `--option=value` forms are supported.
 
 ## Troubleshooting
 

@@ -5,34 +5,27 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"time"
 
 	"video-downloader/internal/config"
 	"video-downloader/internal/downloader"
 )
 
 func runLegacy(ctx context.Context, options Options) error {
-	flags := flag.NewFlagSet("videodl", flag.ContinueOnError)
-	flags.SetOutput(options.ErrOut)
-	var outputPath, ffmpegPath string
-	var ffmpeg bool
-	var timeout time.Duration
-	var transfer transferFlags
-	var configPath string
-	bindTransferFlags(flags, &transfer)
-	flags.StringVar(&configPath, "config", "", "fichier de configuration")
-	flags.StringVar(&outputPath, "o", "", "chemin du fichier de sortie")
-	flags.StringVar(&outputPath, "output", "", "chemin du fichier de sortie")
-	flags.BoolVar(&ffmpeg, "ffmpeg", false, "forcer le traitement par ffmpeg")
-	flags.StringVar(&ffmpegPath, "ffmpeg-path", "", "chemin de l'exécutable ffmpeg")
-	flags.DurationVar(&timeout, "timeout", 30*time.Second, "délai réseau par connexion et réponse HTTP")
+	values := commandFlags{}
+	flags := commandFlagSet("", &values, options.ErrOut)
 	if err := flags.Parse(options.Args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			legacyHelp(options.ErrOut)
+			flags.Usage()
 			return nil
 		}
 		return err
 	}
+	if values.help {
+		flags.Usage()
+		return nil
+	}
+	outputPath, ffmpegPath, configPath := values.output, values.ffmpegPath, values.configPath
+	ffmpeg, timeout, transfer := values.ffmpeg, values.timeout, values.transferFlags
 	if flags.NArg() != 1 {
 		return fmt.Errorf("usage: videodl [flags] URL")
 	}

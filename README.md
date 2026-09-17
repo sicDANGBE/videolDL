@@ -11,13 +11,13 @@ Depuis ce dossier, avec l'exécutable fourni ou après compilation :
 go build -trimpath -o videodl ./cmd/videodl
 ./videodl setup --destination "$HOME/Videos/videodl"
 ./videodl doctor
-./videodl add --name video.mp4 'https://example.com/video.mp4'
+./videodl add video.mp4 'https://example.com/video.mp4'
 ./videodl worker
 ./videodl watch --once
 ```
 
 L'URL est un exemple : fournissez une URL directe de média ou de playlist.
-Les options doivent précéder l'URL ou l'identifiant.
+Les options doivent précéder le nom, l'URL ou l'identifiant.
 
 `setup` crée la configuration complète, un guide, un manuel et les scripts de
 complétion dans `~/.config/videodl/` (ou `$XDG_CONFIG_HOME/videodl/`). Il prépare
@@ -28,6 +28,57 @@ L’aide générale affiche le profil effectif ; `VIDEODL_DESTINATION` reste pri
 sur la valeur du fichier. Les tâches déjà ajoutées gardent leur chemin de sortie.
 
 Voir [config/README.md](config/README.md) pour les profils et le premier lancement.
+
+## Arguments et options courtes
+
+Ces formes sont équivalentes :
+
+```sh
+videodl add toto.mp4 'https://example.com/playlist.m3u8'
+videodl add -n toto.mp4 'https://example.com/playlist.m3u8'
+videodl add --name toto.mp4 'https://example.com/playlist.m3u8'
+```
+
+`add URL` déduit toujours le nom de l’URL. Le nom doit être un fichier sans
+répertoire ; ne combinez pas un nom positionnel avec `--name` ou `--output`.
+Placez les options avant le premier argument : `add -d /chemin toto.mp4 URL`.
+Utilisez `--` avant un nom commençant par un tiret : `add -- -video.mp4 URL`.
+Mettez entre guillemets les noms avec espaces et les URL avec caractères spéciaux.
+
+| Courte | Longue | Usage |
+|---|---|---|
+| `-h` | `--help` | Aide de la commande |
+| `-c` | `--config` | Fichier de configuration |
+| `-s` | `--state` | File persistante |
+| `-l` | `--log` | Dossier des journaux |
+| `-d` | `--destination` | Destination (`add`, `setup`) |
+| `-n` | `--name` | Nom du fichier (`add`) |
+| `-o` | `--output` | Sortie immédiate ou nom pour `add` |
+| `-j` | `--concurrency` | Transferts simultanés (`worker`) |
+| `-t` | `--timeout` | Délai réseau (`worker`, téléchargement immédiat) |
+| `-f` | `--ffmpeg` | Forcer FFmpeg |
+| `-F` | `--ffmpeg-path` | Exécutable FFmpeg (`worker`, immédiat) |
+| `-W` | `--webhook` | Webhook (`add`, `worker`, `retry`, `cancel`) |
+| `-J` | `--json` | Résultat JSON |
+| `-w` | `--watch` | Surveillance continue (`worker`) |
+| `-1` | `--once` | Un seul affichage (`watch`) |
+| `-i` | `--interval` | Rafraîchissement (`watch`) |
+| `-r` | `--retries` | Nouvelles tentatives |
+| `-R` | `--resume` | Reprise HTTP |
+| `-H` | `--max-height` | Hauteur HLS maximale |
+| `-T` | `--idle-timeout` | Délai sans données |
+| `-e` | `--editor` | Éditeur (`config edit`) |
+
+Les options courtes acceptent `-n NOM` ou `-n=NOM`, avec un espace ou `=` ;
+elles ne se regroupent pas (`-j 8`, pas `-j8`). Pour désactiver un booléen,
+utilisez `-R=false` ou `--resume=false`. Les raccourcis gardent la même priorité
+que les options longues, y compris pour `false` et `0`.
+
+Chaque commande accepte uniquement les options utiles, affichées par
+`videodl COMMANDE -h`. `add` enregistre les réglages de transfert de la tâche
+(`-r`, `-R`, `-H`, `-T`, `-f`). La concurrence, le délai réseau et le chemin FFmpeg
+se règlent sur `worker` ou dans la configuration. La destination des tâches
+déjà en file est conservée. Une option sans effet sur une commande est refusée.
 
 ## Aide et consultation
 
@@ -69,7 +120,14 @@ source <(videodl completion bash)
 
 Zsh : `source <(videodl completion zsh)` après `compinit`.
 Fish : `videodl completion fish | source`.
-Pour l'activation permanente, voir le guide généré par `setup`.
+Pour l'activation permanente, voir le guide généré par `setup`. Après une mise
+à jour, rechargez la complétion avec la commande ci-dessus dans le terminal ouvert.
+
+La complétion tient compte de la commande et de la valeur attendue : après
+`add --name`, aucun autre drapeau n’est proposé. Elle complète les chemins,
+les valeurs connues et les identifiants de tâche, puis cesse de proposer des options
+après le premier argument positionnel. L’aide, l’analyse des arguments et la
+complétion partagent les mêmes définitions.
 
 Manuel : `man videodl` après installation si le préfixe figure dans le chemin
 recherché par man ; sinon `man -l internal/cli/assets/videodl.1`.

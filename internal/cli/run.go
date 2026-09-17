@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,8 +39,12 @@ func Run(ctx context.Context, options Options) error {
 	case "help":
 		return runHelp(ctx, options, options.Args[1:])
 	case "man":
-		if len(options.Args) > 1 && options.Args[1] != "--help" && options.Args[1] != "-h" {
-			return fmt.Errorf("usage: videodl man")
+		set := commandFlagSet("man", &commandFlags{}, options.Out)
+		if err := set.Parse(options.Args[1:]); err != nil {
+			return err
+		}
+		if set.NArg() != 0 {
+			return fmt.Errorf("usage: videodl man [--help]")
 		}
 		_, err := fmt.Fprint(options.Out, quickstart)
 		return err
@@ -81,15 +84,4 @@ func isCommand(value string) bool {
 	default:
 		return false
 	}
-}
-
-func legacyHelp(out io.Writer) {
-	flags := flag.NewFlagSet("videodl", flag.ContinueOnError)
-	flags.SetOutput(out)
-	flags.String("o", "", "chemin du fichier de sortie")
-	flags.String("output", "", "chemin du fichier de sortie")
-	flags.Bool("ffmpeg", false, "forcer le traitement par ffmpeg")
-	flags.String("ffmpeg-path", "", "chemin de l'exécutable ffmpeg")
-	flags.Duration("timeout", 0, "délai réseau par connexion et réponse HTTP")
-	_, _ = fmt.Fprintln(out, "Queue commands: add, worker, list, status, watch, retry, cancel, config, daemon, completion")
 }

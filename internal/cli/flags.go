@@ -17,6 +17,9 @@ import (
 )
 
 type commandFlags struct {
+	editor                   string
+	interval                 time.Duration
+	once, nameSet, outputSet bool
 	transferFlags
 	jobOptions                                  downloader.Overrides
 	configPath, statePath, logPath, destination string
@@ -39,30 +42,8 @@ type runtime struct {
 }
 
 func parseFlags(name string, args []string, options Options) (runtime, []string, error) {
-	flags := commandFlags{timeout: 30 * time.Second}
-	set := flag.NewFlagSet("videodl "+name, flag.ContinueOnError)
-	set.SetOutput(options.Out)
-	set.Usage = func() {
-		_, _ = fmt.Fprintf(options.Out, "Usage: videodl %s [flags]\n\nOptions:\n", name)
-		set.PrintDefaults()
-	}
-	bindTransferFlags(set, &flags.transferFlags)
-	set.StringVar(&flags.configPath, "config", "", "chemin du fichier de configuration")
-	set.StringVar(&flags.statePath, "state", "", "chemin de l'état de la file")
-	set.StringVar(&flags.logPath, "log", "", "répertoire des journaux")
-	set.StringVar(&flags.destination, "destination", "", "répertoire de destination")
-	set.IntVar(&flags.concurrency, "concurrency", 0, "nombre de téléchargements simultanés")
-	set.DurationVar(&flags.timeout, "timeout", flags.timeout, "délai réseau")
-	set.StringVar(&flags.ffmpegPath, "ffmpeg-path", "", "chemin de l'exécutable ffmpeg")
-	set.StringVar(&flags.name, "name", "", "nom sûr du fichier de sortie")
-	set.StringVar(&flags.output, "output", "", "nom sûr du fichier de sortie")
-	set.BoolVar(&flags.ffmpeg, "ffmpeg", false, "forcer le traitement par ffmpeg")
-	if name == "worker" {
-		set.BoolVar(&flags.watch, "watch", false, "surveiller la file en continu")
-	}
-	set.StringVar(&flags.webhookURL, "webhook", "", "URL webhook d'observabilité")
-	set.BoolVar(&flags.json, "json", false, "émettre du JSON")
-	set.BoolVar(&flags.help, "help", false, "afficher cette aide")
+	flags := commandFlags{}
+	set := commandFlagSet(name, &flags, options.Out)
 	if err := set.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			flags.help = true
@@ -75,7 +56,11 @@ func parseFlags(name string, args []string, options Options) (runtime, []string,
 		return runtime{flags: flags}, set.Args(), nil
 	}
 	set.Visit(func(value *flag.Flag) {
-		switch value.Name {
+		switch canonicalOption(value.Name) {
+		case "name":
+			flags.nameSet = true
+		case "output":
+			flags.outputSet = true
 		case "config":
 			flags.configSet = true
 		case "state":
@@ -143,8 +128,10 @@ func parseFlags(name string, args []string, options Options) (runtime, []string,
 	if name == "list" || name == "status" {
 		return runtime{flags: flags, config: loaded, errOut: options.ErrOut}, set.Args(), nil
 	}
-	if err := os.MkdirAll(loaded.Destination, 0o755); err != nil {
-		return runtime{}, nil, fmt.Errorf("create destination: %w", err)
+	if name == "add" {
+		if err := os.MkdirAll(loaded.Destination, 0o755); err != nil {
+			return runtime{}, nil, fmt.Errorf("create destination: %w", err)
+		}
 	}
 	store, err := queue.NewStore(loaded.StatePath)
 	if err != nil {
@@ -164,7 +151,7 @@ func parseFlags(name string, args []string, options Options) (runtime, []string,
 func visited(set *flag.FlagSet, name string) bool {
 	seen := false
 	set.Visit(func(value *flag.Flag) {
-		if value.Name == name {
+		if canonicalOption(value.Name) == name {
 			seen = true
 		}
 	})

@@ -100,7 +100,7 @@ func TestRun_worker_keeps_completed_state_when_notify_command_fails(t *testing.T
 	}
 
 	// When
-	err := Run(context.Background(), Options{Args: []string{"worker", "--state", statePath, "--destination", destination}, Out: &output, ErrOut: &output, Client: server.Client(), HomeDir: home, WorkingDir: workDir, Env: env})
+	err := Run(context.Background(), Options{Args: []string{"worker", "--state", statePath}, Out: &output, ErrOut: &output, Client: server.Client(), HomeDir: home, WorkingDir: workDir, Env: env})
 
 	// Then
 	if err != nil {

@@ -73,14 +73,8 @@ func runDaemonCommand(ctx context.Context, options Options, args []string) error
 
 func parseDaemonFlags(name string, args []string, options Options) (daemonFlags, []string, error) {
 	flags := daemonFlags{}
-	set := flag.NewFlagSet("videodl daemon "+name, flag.ContinueOnError)
-	set.SetOutput(options.Out)
-	set.Usage = func() {
-		_, _ = fmt.Fprintf(options.Out, "Usage: videodl daemon %s [flags]\n\nOptions:\n", name)
-		set.PrintDefaults()
-	}
-	set.StringVar(&flags.configPath, "config", "", "chemin du fichier de configuration")
-	set.BoolVar(&flags.help, "help", false, "afficher cette aide")
+	values := commandFlags{}
+	set := commandFlagSet("daemon "+name, &values, options.Out)
 	if err := set.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.help = true
@@ -88,6 +82,7 @@ func parseDaemonFlags(name string, args []string, options Options) (daemonFlags,
 		}
 		return daemonFlags{}, nil, err
 	}
+	flags = daemonFlags{configPath: values.configPath, help: values.help}
 	if flags.help {
 		set.Usage()
 	}

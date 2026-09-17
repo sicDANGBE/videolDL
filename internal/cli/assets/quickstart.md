@@ -12,12 +12,12 @@ leur chemin de sortie ; la nouvelle destination concerne les prochains ajouts.
 
     videodl setup --destination "$HOME/Videos/videodl"
     videodl doctor
-    videodl add --name exemple.mp4 'https://example.com/video.mp4'
+    videodl add exemple.mp4 'https://example.com/video.mp4'
     videodl worker
     videodl watch --once
 
 Les URL ci-dessus sont des exemples. Utilisez une URL directe de fichier ou de flux.
-Les options se placent AVANT l'URL ou l'identifiant de tâche.
+Les options se placent AVANT le nom, l'URL ou l'identifiant de tâche.
 
 Pour travailler en arrière-plan :
 
@@ -28,6 +28,57 @@ Pour travailler en arrière-plan :
 Pour les prochaines tâches ajoutées, le démarrage peut être automatisé :
 
     videodl config set auto_start_worker true
+
+## Arguments et options courtes
+
+Ces formes sont équivalentes :
+
+```sh
+videodl add toto.mp4 'https://example.com/playlist.m3u8'
+videodl add -n toto.mp4 'https://example.com/playlist.m3u8'
+videodl add --name toto.mp4 'https://example.com/playlist.m3u8'
+```
+
+`add URL` déduit toujours le nom de l’URL. Le nom doit être un fichier sans
+répertoire ; ne combinez pas un nom positionnel avec `--name` ou `--output`.
+Placez les options avant le premier argument : `add -d /chemin toto.mp4 URL`.
+Utilisez `--` avant un nom commençant par un tiret : `add -- -video.mp4 URL`.
+Mettez entre guillemets les noms avec espaces et les URL avec caractères spéciaux.
+
+| Courte | Longue | Usage |
+|---|---|---|
+| `-h` | `--help` | Aide de la commande |
+| `-c` | `--config` | Fichier de configuration |
+| `-s` | `--state` | File persistante |
+| `-l` | `--log` | Dossier des journaux |
+| `-d` | `--destination` | Destination (`add`, `setup`) |
+| `-n` | `--name` | Nom du fichier (`add`) |
+| `-o` | `--output` | Sortie immédiate ou nom pour `add` |
+| `-j` | `--concurrency` | Transferts simultanés (`worker`) |
+| `-t` | `--timeout` | Délai réseau (`worker`, téléchargement immédiat) |
+| `-f` | `--ffmpeg` | Forcer FFmpeg |
+| `-F` | `--ffmpeg-path` | Exécutable FFmpeg (`worker`, immédiat) |
+| `-W` | `--webhook` | Webhook (`add`, `worker`, `retry`, `cancel`) |
+| `-J` | `--json` | Résultat JSON |
+| `-w` | `--watch` | Surveillance continue (`worker`) |
+| `-1` | `--once` | Un seul affichage (`watch`) |
+| `-i` | `--interval` | Rafraîchissement (`watch`) |
+| `-r` | `--retries` | Nouvelles tentatives |
+| `-R` | `--resume` | Reprise HTTP |
+| `-H` | `--max-height` | Hauteur HLS maximale |
+| `-T` | `--idle-timeout` | Délai sans données |
+| `-e` | `--editor` | Éditeur (`config edit`) |
+
+Les options courtes acceptent `-n NOM` ou `-n=NOM`, avec un espace ou `=` ;
+elles ne se regroupent pas (`-j 8`, pas `-j8`). Pour désactiver un booléen,
+utilisez `-R=false` ou `--resume=false`. Les raccourcis gardent la même priorité
+que les options longues, y compris pour `false` et `0`.
+
+Chaque commande accepte uniquement les options utiles, affichées par
+`videodl COMMANDE -h`. `add` enregistre les réglages de transfert de la tâche
+(`-r`, `-R`, `-H`, `-T`, `-f`). La concurrence, le délai réseau et le chemin FFmpeg
+se règlent sur `worker` ou dans la configuration. La destination des tâches
+déjà en file est conservée. Une option sans effet sur une commande est refusée.
 
 ## Consulter et régler
 
@@ -75,6 +126,11 @@ ajoutez la commande `source` ci-dessus à ~/.bashrc. Pour Zsh, ajoutez-la à ~/.
 après compinit. Pour Fish, utilisez `videodl completion fish >
 ~/.config/fish/completions/videodl.fish` après création de ce dossier.
 Aucun fichier de démarrage du shell n'est modifié automatiquement.
+Après une mise à jour, rechargez la complétion dans le terminal ouvert avec la
+commande correspondante ci-dessus. Seules les options de la commande sont
+proposées ; après `--name`, un nom est attendu, donc aucune option n’est suggérée.
+Les chemins avec espaces et les valeurs connues sont pris en charge. Après le
+premier argument positionnel, les options ne sont plus proposées.
 
 ## Fichiers et reprise
 

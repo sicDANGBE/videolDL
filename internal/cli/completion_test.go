@@ -65,7 +65,7 @@ func TestRun_hidden_completion_returns_static_suggestions(t *testing.T) {
 		want []string
 	}{
 		{name: "top level commands", args: []string{"__complete", "bash", ""}, want: []string{"add", "worker", "list", "status", "retry", "cancel", "config", "daemon", "watch", "completion"}},
-		{name: "shared flags", args: []string{"__complete", "zsh", "list", "--"}, want: []string{"--config", "--state", "--log", "--destination", "--concurrency", "--timeout", "--ffmpeg", "--ffmpeg-path", "--webhook", "--json", "--help"}},
+		{name: "list flags", args: []string{"__complete", "zsh", "list", "--"}, want: []string{"--config", "--state", "--json", "--help"}},
 		{name: "completion shells", args: []string{"__complete", "fish", "completion", ""}, want: []string{"bash", "zsh", "fish"}},
 		{name: "config keys", args: []string{"__complete", "bash", "config", "get", ""}, want: []string{"state_path", "log_path", "destination", "concurrency", "timeout", "ffmpeg", "ffmpeg_path", "webhook_url", "editor", "auto_start_worker", "daemon_pid_path", "daemon_log_path", "notify_command"}},
 	}
@@ -144,8 +144,8 @@ func TestRun_hidden_completion_does_not_create_downloads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hidden completion returned error: %v", err)
 	}
-	if output.Len() != 0 {
-		t.Fatalf("suggestions = %q, want none", output.String())
+	if strings.Contains(output.String(), "job-") {
+		t.Fatalf("unexpected job suggestions: %q", output.String())
 	}
 	_, statErr := os.Stat(filepath.Join(workDir, "downloads"))
 	if statErr == nil {

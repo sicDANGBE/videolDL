@@ -6,7 +6,7 @@ videodl \- download HTTP media and HLS playlists with a persistent queue
 .RI [ --destination " DIR"] " [--config FILE]"
 .br
 .B videodl add
-.RI [ options ] " URL"
+.RI [ options ] " [NAME] URL"
 .br
 .B videodl worker
 .RI [ --watch ] " [options]"
@@ -29,8 +29,11 @@ Already queued jobs keep their saved output path.
 .B doctor
 Read-only configuration, paths and FFmpeg diagnostics; no network access.
 .TP
-.B add --name NAME URL
+.B add [NAME] URL
 Queue a download. Returns a job identifier.
+A positional NAME, -n NAME and --name NAME are equivalent; --output/-o is also
+a name alias. Do not combine these forms. Without a name, derive it from the URL.
+Names must be single filenames without a directory. Quote names with spaces.
 .TP
 .B worker [--watch]
 Drain queued jobs, or continue watching for new ones.
@@ -56,6 +59,36 @@ Print a shell completion script. See the setup guide for installation.
 .B help [COMMAND] / man
 Display help or the embedded plain-text manual. General help shows the effective
 configuration when available.
+.SH SHORT OPTIONS
+Each command accepts only its relevant options; use COMMAND -h for the exact list.
+Options precede the first positional argument. Use -- before a name starting with a dash.
+Values use an intervening space or equals sign: -n NAME or -n=NAME.
+Grouped options and attached values such as -j8 are not supported.
+Boolean values use =true or =false, for example -R=false.
+.TP
+.B -h, -c, -s, -l, -d
+--help, --config, --state, --log, --destination.
+.TP
+.B -n, -o, -j, -t, -f, -F, -W
+--name, --output, --concurrency, --timeout, --ffmpeg, --ffmpeg-path, --webhook.
+.TP
+.B -J, -w, -1, -i, -e
+--json, --watch, --once, --interval, --editor.
+.TP
+.B -r, -R, -H, -T
+--retries, --resume, --max-height, --idle-timeout.
+.PP
+Destination applies to add/setup, concurrency to worker, timeout and ffmpeg-path
+to worker/direct downloads. Transfer options on add are saved with the job.
+.SH COMPLETION
+Completion offers only valid options for the selected command and cursor position.
+After --name, a filename is expected and no flags are suggested.
+Paths, known option values and job identifiers are completed without queue changes.
+Reload completion after an upgrade in an open shell; Bash:
+.PP
+.nf
+source <(videodl completion bash)
+.fi
 .SH TRANSFER OPTIONS
 .TP
 .B --retries N

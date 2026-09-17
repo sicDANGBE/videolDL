@@ -90,7 +90,7 @@ func TestRun_add_does_not_fetch_until_worker(t *testing.T) {
 		t.Fatalf("jobs = %d", len(jobs))
 	}
 
-	if err := Run(context.Background(), Options{Args: []string{"worker", "--state", state, "--destination", destination}, Out: &stdout, ErrOut: &stdout, Client: server.Client(), WorkingDir: workDir}); err != nil {
+	if err := Run(context.Background(), Options{Args: []string{"worker", "--state", state}, Out: &stdout, ErrOut: &stdout, Client: server.Client(), WorkingDir: workDir}); err != nil {
 		t.Fatalf("worker returned error: %v", err)
 	}
 	if requests != 1 {

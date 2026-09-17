@@ -45,7 +45,7 @@ func TestRun_worker_flags_override_config_concurrency(t *testing.T) {
 	}
 	workerDone := make(chan error, 1)
 	go func() {
-		workerDone <- Run(context.Background(), Options{Args: []string{"worker", "--config", configPath, "--state", state, "--destination", workDir, "--concurrency", "2"}, Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}, WorkingDir: workDir, Client: server.Client()})
+		workerDone <- Run(context.Background(), Options{Args: []string{"worker", "-c", configPath, "-s", state, "-j", "2"}, Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}, WorkingDir: workDir, Client: server.Client()})
 	}()
 	for range 2 {
 		select {
@@ -67,12 +67,11 @@ func TestRun_workerWatch_accepts_watch_flag(t *testing.T) {
 	// Given
 	workDir := t.TempDir()
 	state := filepath.Join(workDir, "queue.json")
-	destination := filepath.Join(workDir, "downloads")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	// When
-	err := Run(ctx, Options{Args: []string{"worker", "--watch", "--state", state, "--destination", destination}, Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}, WorkingDir: workDir})
+	err := Run(ctx, Options{Args: []string{"worker", "--watch", "--state", state}, Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}, WorkingDir: workDir})
 
 	// Then
 	if !errors.Is(err, context.Canceled) {

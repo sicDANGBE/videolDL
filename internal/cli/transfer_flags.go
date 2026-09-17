@@ -13,12 +13,6 @@ type transferFlags struct {
 	idleTimeout        time.Duration
 }
 
-func bindTransferFlags(set *flag.FlagSet, f *transferFlags) {
-	set.IntVar(&f.retries, "retries", 3, "nouvelles tentatives réseau (0 à 10)")
-	set.BoolVar(&f.resume, "resume", true, "reprendre les fichiers HTTP si le serveur fournit un ETag fort")
-	set.IntVar(&f.maxHeight, "max-height", 0, "hauteur HLS maximale, ex. 720 ou 1080 (0 = meilleur débit)")
-	set.DurationVar(&f.idleTimeout, "idle-timeout", time.Minute, "délai maximal sans données HTTP")
-}
 func applyTransferOverrides(set *flag.FlagSet, f transferFlags, o *config.Overrides) {
 	if visited(set, "retries") {
 		o.Retries = &f.retries

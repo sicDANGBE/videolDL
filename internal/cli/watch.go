@@ -16,18 +16,14 @@ import (
 )
 
 type watchFlags struct {
-	configPath  string
-	statePath   string
-	logPath     string
-	destination string
-	interval    time.Duration
-	json        bool
-	once        bool
-	help        bool
-	configSet   bool
-	stateSet    bool
-	logSet      bool
-	destSet     bool
+	configPath string
+	statePath  string
+	interval   time.Duration
+	json       bool
+	once       bool
+	help       bool
+	configSet  bool
+	stateSet   bool
 }
 
 type watchReport struct {
@@ -82,21 +78,9 @@ func runWatch(ctx context.Context, options Options, args []string) error {
 }
 
 func parseWatchFlags(args []string, out io.Writer) (watchFlags, []string, error) {
-	flags := watchFlags{interval: 2 * time.Second, once: false}
-	set := flag.NewFlagSet("videodl watch", flag.ContinueOnError)
-	set.SetOutput(out)
-	set.Usage = func() {
-		_, _ = fmt.Fprintln(out, "Usage: videodl watch [flags]\n\nOptions:")
-		set.PrintDefaults()
-	}
-	set.StringVar(&flags.configPath, "config", "", "chemin du fichier de configuration")
-	set.StringVar(&flags.statePath, "state", "", "chemin de l'état de la file")
-	set.StringVar(&flags.logPath, "log", "", "répertoire des journaux")
-	set.StringVar(&flags.destination, "destination", "", "répertoire de destination")
-	set.BoolVar(&flags.json, "json", false, "émettre du JSON")
-	set.BoolVar(&flags.once, "once", false, "afficher l'état une fois puis quitter")
-	set.DurationVar(&flags.interval, "interval", flags.interval, "intervalle de rafraîchissement")
-	set.BoolVar(&flags.help, "help", false, "afficher cette aide")
+	values := commandFlags{}
+	set := commandFlagSet("watch", &values, out)
+	flags := watchFlags{}
 	if err := set.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.help = true
@@ -104,16 +88,13 @@ func parseWatchFlags(args []string, out io.Writer) (watchFlags, []string, error)
 		}
 		return watchFlags{}, nil, err
 	}
+	flags = watchFlags{configPath: values.configPath, statePath: values.statePath, json: values.json, once: values.once, interval: values.interval, help: values.help}
 	set.Visit(func(value *flag.Flag) {
-		switch value.Name {
+		switch canonicalOption(value.Name) {
 		case "config":
 			flags.configSet = true
 		case "state":
 			flags.stateSet = true
-		case "log":
-			flags.logSet = true
-		case "destination":
-			flags.destSet = true
 		}
 	})
 	if flags.help {
@@ -136,12 +117,6 @@ func loadWatchConfig(options Options, flags watchFlags) (config.Config, error) {
 	}
 	if flags.stateSet {
 		overrides.StatePath = &flags.statePath
-	}
-	if flags.logSet {
-		overrides.LogPath = &flags.logPath
-	}
-	if flags.destSet {
-		overrides.Destination = &flags.destination
 	}
 	return config.Load(config.LoadOptions{ConfigPath: flags.configPath, HomeDir: options.HomeDir, WorkingDir: workingDir, Env: options.Env, Overrides: overrides})
 }
